@@ -56,71 +56,16 @@ module tb ();
     forever #5 clk = ~clk; // 100MHz clock
   end
 
-  // Test sequence
+  // Initialize signals for cocotb (no test sequence - cocotb controls the simulation)
   initial begin
     // Initialize signals
     rst_n = 0;
     ena = 1;
     ui_in = 8'h00;
     uio_in = 8'h00;
-
-    // Wait for reset
-    #50;
-    rst_n = 1;
-
-    $display("=== 8-bit RISC-V Processor Test ===");
-    $display("Starting Fibonacci sequence test...");
-
-    // Enable debug mode
-    ui_in[1] = 1; // debug_en = 1
-
-    // Run for some cycles to see Fibonacci sequence
-    begin : test_loop
-      integer cycle_count;
-      cycle_count = 0;
-      while (cycle_count < 100 && !cpu_halt) begin
-        @(posedge clk);
-        cycle_count = cycle_count + 1;
-        if (output_valid) begin
-          $display("Cycle %0d: PC=%h, Reg=%h, Data=%h, Halt=%b",
-                   cycle_count, pc_out, reg_out, data_bus, cpu_halt);
-        end
-      end
-      if (cpu_halt) begin
-        $display("CPU halted at PC=%h after %0d cycles", pc_out, cycle_count);
-      end
-    end
-
-    // Test step mode
-    $display("\nTesting step mode...");
-    ui_in[2] = 1; // step_mode = 1
-
-    // Reset and run in step mode
-    rst_n = 0;
-    #20;
-    rst_n = 1;
-
-    begin : step_loop
-      integer step_count;
-      for (step_count = 0; step_count < 20; step_count = step_count + 1) begin
-        @(posedge clk);
-        if (output_valid) begin
-          $display("Step %0d: PC=%h, Reg=%h, Data=%h", step_count, pc_out, reg_out, data_bus);
-        end
-      end
-    end
-
-    $display("\nTest completed!");
-    $finish;
+    // Let cocotb control the rest
   end
 
-  // Monitor for interesting events
-  always @(posedge clk) begin
-    if (rst_n) begin
-      // Show processor state every cycle
-      $display("t=%0t: PC=%h, REG=%h, DATA=%h, HALT=%b, VALID=%b",
-               $time, pc_out, reg_out, data_bus, cpu_halt, output_valid);
-    end
-  end
+  // Monitor removed - cocotb handles test monitoring
 
 endmodule
