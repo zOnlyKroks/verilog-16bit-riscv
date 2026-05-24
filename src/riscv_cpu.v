@@ -85,9 +85,9 @@ module riscv_cpu (
         end
     end
 
-    // Calculate effective address for instruction fetch (5 bits for 32 bytes)
+    // Calculate effective address for instruction fetch (4 bits for 16 bytes)
     wire [7:0] fetch_addr_full = (pc << 2) + {6'b0, fetch_counter};
-    wire [4:0] fetch_addr = fetch_addr_full[4:0];
+    wire [3:0] fetch_addr = fetch_addr_full[3:0];
 
     // State machine
     always_ff @(posedge clk or negedge rst_n) begin
@@ -163,9 +163,9 @@ module riscv_cpu (
     register_file regfile (
         .clk(clk),
         .rst_n(rst_n),
-        .read_addr1(rs1[2:0]), // Source register 1 for ALU (3-bit for 8 regs)
-        .read_addr2(rs2[2:0]), // Source register 2 for ALU (3-bit for 8 regs)
-        .write_addr(rd[2:0]),  // Destination register (3-bit for 8 regs)
+        .read_addr1(rs1[1:0]), // Source register 1 for ALU (2-bit for 4 regs)
+        .read_addr2(rs2[1:0]), // Source register 2 for ALU (2-bit for 4 regs)
+        .write_addr(rd[1:0]),  // Destination register (2-bit for 4 regs)
         .write_data(reg_data_sel == 2'b00 ? alu_out :
                    reg_data_sel == 2'b01 ? mem_data_out :
                    reg_data_sel == 2'b10 ? (pc + 8'd1) :

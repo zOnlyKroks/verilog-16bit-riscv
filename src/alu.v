@@ -21,15 +21,14 @@ module alu (
     localparam ALU_OR   = 5'b00011;
     localparam ALU_XOR  = 5'b00100;
     localparam ALU_SLT  = 5'b00101;  // Set less than
-    localparam ALU_SLTU = 5'b00110;  // Set less than unsigned
+    // SLTU removed for area optimization
     localparam ALU_SLL  = 5'b00111;  // Shift left logical
     // SRL and SRA removed for area optimization
     localparam ALU_BEQ  = 5'b10000;  // Branch equal
     localparam ALU_BNE  = 5'b10001;  // Branch not equal
     localparam ALU_BLT  = 5'b10010;  // Branch less than
     localparam ALU_BGE  = 5'b10011;  // Branch greater/equal
-    localparam ALU_BLTU = 5'b10100;  // Branch less than unsigned
-    localparam ALU_BGEU = 5'b10101;  // Branch greater/equal unsigned
+    // Unsigned branch operations removed for area optimization
 
     // Internal signals
     wire [8:0] add_result = {1'b0, a} + {1'b0, b};
@@ -46,7 +45,7 @@ module alu (
             ALU_OR:   result = a | b;
             ALU_XOR:  result = a ^ b;
             ALU_SLT:  result = (a_signed < b_signed) ? 8'h01 : 8'h00;
-            ALU_SLTU: result = (a < b) ? 8'h01 : 8'h00;
+            // SLTU removed for area optimization
             ALU_SLL:  result = a << (b & 8'h07); // Only use lower 3 bits for shift amount
             // SRL and SRA removed for area optimization
 
@@ -55,8 +54,7 @@ module alu (
             ALU_BNE:  result = (a != b) ? 8'h01 : 8'h00;
             ALU_BLT:  result = (a_signed < b_signed) ? 8'h01 : 8'h00;
             ALU_BGE:  result = (a_signed >= b_signed) ? 8'h01 : 8'h00;
-            ALU_BLTU: result = (a < b) ? 8'h01 : 8'h00;
-            ALU_BGEU: result = (a >= b) ? 8'h01 : 8'h00;
+            // Unsigned branch operations removed for area optimization
 
             default:  result = 8'h00;
         endcase

@@ -51,7 +51,7 @@ module control_unit (
                 case (funct3)
                     3'b000: alu_op = 5'b00000; // ADDI
                     3'b010: alu_op = 5'b00101; // SLTI
-                    3'b011: alu_op = 5'b00110; // SLTIU
+                    // SLTIU removed for area optimization
                     3'b100: alu_op = 5'b00100; // XORI
                     3'b110: alu_op = 5'b00011; // ORI
                     3'b111: alu_op = 5'b00010; // ANDI
@@ -71,7 +71,7 @@ module control_unit (
                     end
                     3'b001: alu_op = 5'b00111; // SLL
                     3'b010: alu_op = 5'b00101; // SLT
-                    3'b011: alu_op = 5'b00110; // SLTU
+                    // SLTU removed for area optimization
                     3'b100: alu_op = 5'b00100; // XOR
                     // Shift right operations removed for area optimization
                     3'b110: alu_op = 5'b00011; // OR
@@ -99,8 +99,7 @@ module control_unit (
                     3'b001: alu_op = 5'b10001; // BNE
                     3'b100: alu_op = 5'b10010; // BLT
                     3'b101: alu_op = 5'b10011; // BGE
-                    3'b110: alu_op = 5'b10100; // BLTU
-                    3'b111: alu_op = 5'b10101; // BGEU
+                    // Unsigned branch operations removed for area optimization
                     default: alu_op = 5'b10000;
                 endcase
             end
