@@ -17,8 +17,8 @@ module instruction_memory (
     output reg  [7:0]  data_out     // 8-bit instruction data output
 );
 
-    // Memory array: 64 bytes (16 instructions x 4 bytes each) - good balance
-    reg [7:0] memory [63:0];
+    // Memory array: 32 bytes (8 instructions x 4 bytes each) - area constrained
+    reg [7:0] memory [31:0];
 
     // Programming interface state
     reg [7:0] prog_addr;
@@ -53,7 +53,7 @@ module instruction_memory (
     integer i;
     initial begin
         // Initialize all memory to zero
-        for (i = 0; i < 64; i = i + 1) begin
+        for (i = 0; i < 32; i = i + 1) begin
             memory[i] = 8'h00;
         end
 

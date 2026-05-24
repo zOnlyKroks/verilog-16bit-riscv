@@ -68,13 +68,13 @@ module riscv_cpu (
 
     // Immediate generation (simplified for 8-bit)
     wire [7:0] imm_i = instruction[19:12];  // I-type immediate (8-bit)
-    wire [7:0] imm_s = {instruction[31:25], instruction[11:7]}; // S-type
-    wire [7:0] imm_b = {instruction[31], instruction[7], instruction[30:25]}; // B-type (6 bits)
-    wire [7:0] imm_j = instruction[19:12]; // J-type (simplified)
+    wire [7:0] imm_s = instruction[19:12];  // S-type simplified to 8-bit
+    wire [7:0] imm_b = instruction[19:12];  // B-type simplified to 8-bit
+    wire [7:0] imm_j = instruction[19:12];  // J-type (simplified)
 
-    // Data memory (32-byte RAM) - restored with headroom available
-    reg [7:0] data_memory [31:0];
-    wire [4:0] mem_addr = alu_out[4:0]; // 5 bits for 32 bytes
+    // Data memory (16-byte RAM) - reduced for area constraints
+    reg [7:0] data_memory [15:0];
+    wire [3:0] mem_addr = alu_out[3:0]; // 4 bits for 16 bytes
 
     // Memory read/write logic
     assign mem_data_out = data_memory[mem_addr];
@@ -162,9 +162,9 @@ module riscv_cpu (
     register_file regfile (
         .clk(clk),
         .rst_n(rst_n),
-        .read_addr1(rs1[1:0]), // Source register 1 for ALU (2-bit for 4 regs)
-        .read_addr2(rs2[1:0]), // Source register 2 for ALU (2-bit for 4 regs)
-        .write_addr(rd[1:0]),  // Destination register (2-bit for 4 regs)
+        .read_addr1(rs1[2:0]), // Source register 1 for ALU (3-bit for 8 regs)
+        .read_addr2(rs2[2:0]), // Source register 2 for ALU (3-bit for 8 regs)
+        .write_addr(rd[2:0]),  // Destination register (3-bit for 8 regs)
         .write_data(reg_data_sel == 2'b00 ? alu_out :
                    reg_data_sel == 2'b01 ? mem_data_out :
                    reg_data_sel == 2'b10 ? (pc + 8'd1) :
