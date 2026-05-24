@@ -50,7 +50,7 @@ module riscv_cpu (
     wire [7:0] mem_data_out;
 
     // Control signals
-    wire [3:0] alu_op;
+    wire [4:0] alu_op;
     wire reg_write_en;
     wire mem_read_en, mem_write_en;
     wire [1:0] pc_sel;
@@ -72,8 +72,18 @@ module riscv_cpu (
     wire [7:0] imm_b = {instruction[31], instruction[7], instruction[30:25]}; // B-type (6 bits)
     wire [7:0] imm_j = instruction[19:12]; // J-type (simplified)
 
-    // Data memory removed for area savings - only register operations supported
-    assign mem_data_out = 8'h00; // No memory data
+    // Data memory (32-byte RAM) - restored with headroom available
+    reg [7:0] data_memory [31:0];
+    wire [4:0] mem_addr = alu_out[4:0]; // 5 bits for 32 bytes
+
+    // Memory read/write logic
+    assign mem_data_out = data_memory[mem_addr];
+
+    always_ff @(posedge clk) begin
+        if (mem_write_en && state == STATE_EXECUTE) begin
+            data_memory[mem_addr] <= reg_data2;
+        end
+    end
 
     // Calculate effective address for instruction fetch
     wire [7:0] fetch_addr = (pc << 2) + {6'b0, fetch_counter};
