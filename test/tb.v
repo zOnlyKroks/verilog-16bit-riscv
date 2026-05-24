@@ -75,15 +75,19 @@ module tb ();
     ui_in[1] = 1; // debug_en = 1
 
     // Run for some cycles to see Fibonacci sequence
-    repeat(100) begin
-      @(posedge clk);
-      if (output_valid) begin
-        $display("Cycle: PC=%h, Reg=%h, Data=%h, Halt=%b",
-                 pc_out, reg_out, data_bus, cpu_halt);
+    begin : test_loop
+      integer cycle_count;
+      cycle_count = 0;
+      while (cycle_count < 100 && !cpu_halt) begin
+        @(posedge clk);
+        cycle_count = cycle_count + 1;
+        if (output_valid) begin
+          $display("Cycle %0d: PC=%h, Reg=%h, Data=%h, Halt=%b",
+                   cycle_count, pc_out, reg_out, data_bus, cpu_halt);
+        end
       end
       if (cpu_halt) begin
-        $display("CPU halted at PC=%h", pc_out);
-        break;
+        $display("CPU halted at PC=%h after %0d cycles", pc_out, cycle_count);
       end
     end
 
@@ -96,10 +100,13 @@ module tb ();
     #20;
     rst_n = 1;
 
-    repeat(20) begin
-      @(posedge clk);
-      if (output_valid) begin
-        $display("Step: PC=%h, Reg=%h, Data=%h", pc_out, reg_out, data_bus);
+    begin : step_loop
+      integer step_count;
+      for (step_count = 0; step_count < 20; step_count = step_count + 1) begin
+        @(posedge clk);
+        if (output_valid) begin
+          $display("Step %0d: PC=%h, Reg=%h, Data=%h", step_count, pc_out, reg_out, data_bus);
+        end
       end
     end
 
