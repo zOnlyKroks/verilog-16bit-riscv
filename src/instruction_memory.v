@@ -21,14 +21,14 @@ module instruction_memory (
     reg [7:0] memory [31:0];
 
     // Programming interface state
-    reg [7:0] prog_addr;
+    reg [4:0] prog_addr;
     reg [1:0] prog_nibble_count;
     reg [7:0] prog_byte_buffer;
 
     // Programming logic
     always_ff @(posedge prog_clk or negedge rst_n) begin
         if (!rst_n) begin
-            prog_addr <= 8'h00;
+            prog_addr <= 5'h00;
             prog_nibble_count <= 2'b00;
             prog_byte_buffer <= 8'h00;
         end else if (prog_mode) begin
