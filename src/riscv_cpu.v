@@ -219,8 +219,8 @@ module riscv_cpu (
 
     // Output assignments
     assign pc_out = pc;
-    assign reg_out = {opcode[3:0], alu_op}; // Debug: show opcode and ALU operation
-    assign data_bus_out = {4'h0, state}; // Debug: show processor state
+    assign reg_out = instruction[7:0]; // Debug: show instruction byte 0
+    assign data_bus_out = instruction[15:8]; // Debug: show instruction byte 1
     assign addr_out = alu_out;
     assign halt = (state == STATE_HALT);
     assign valid = (state == STATE_WRITEBACK);
