@@ -17,7 +17,6 @@ module control_unit (
     output reg        mem_write_en, // Memory write enable
     output reg  [1:0] pc_sel,      // PC source select
     output reg  [1:0] reg_data_sel, // Register write data select
-    output wire       branch_taken, // Branch taken (from ALU)
     output reg        jump_taken   // Jump instruction
 );
 
@@ -141,6 +140,6 @@ module control_unit (
         endcase
     end
 
-    // Branch taken signal comes from ALU result (connected externally)
+    // Branch taken signal comes from ALU directly in CPU module
 
 endmodule

@@ -70,12 +70,12 @@ module riscv_cpu (
     // Immediate generation (simplified for 8-bit)
     wire [7:0] imm_i = instruction[19:12];  // I-type immediate (8-bit)
     wire [7:0] imm_s = {instruction[31:25], instruction[11:7]}; // S-type
-    wire [7:0] imm_b = {instruction[31], instruction[7], instruction[30:25], instruction[11:8]}; // B-type
+    wire [7:0] imm_b = {instruction[31], instruction[7], instruction[30:25]}; // B-type (6 bits)
     wire [7:0] imm_j = instruction[19:12]; // J-type (simplified)
 
     // Data memory (simple 64-byte RAM)
     reg [7:0] data_memory [63:0];
-    wire [7:0] mem_addr = alu_out & 8'h3F; // Limit to 64 bytes
+    wire [5:0] mem_addr = alu_out[5:0]; // 6 bits for 64 bytes
 
     // Memory read/write logic
     assign mem_data_out = data_memory[mem_addr];
@@ -87,7 +87,7 @@ module riscv_cpu (
     end
 
     // Calculate effective address for instruction fetch
-    wire [7:0] fetch_addr = (pc << 2) + fetch_counter;
+    wire [7:0] fetch_addr = (pc << 2) + {6'b0, fetch_counter};
 
     // State machine
     always_ff @(posedge clk or negedge rst_n) begin
@@ -119,9 +119,9 @@ module riscv_cpu (
                 end
                 STATE_WRITEBACK: begin
                     if (pc_sel == 2'b01 && branch_taken_alu) // Branch taken
-                        pc <= pc + {{4{imm_b[7]}}, imm_b[7:2]}; // Sign extend and word align
+                        pc <= pc + {{2{imm_b[7]}}, imm_b[7:2]}; // Sign extend and word align (8-bit)
                     else if (pc_sel == 2'b10) // Jump
-                        pc <= pc + {{4{imm_j[7]}}, imm_j[7:2]}; // Sign extend and word align
+                        pc <= pc + {{2{imm_j[7]}}, imm_j[7:2]}; // Sign extend and word align (8-bit)
                     else // Normal increment
                         pc <= pc + 1;
                 end
@@ -223,7 +223,6 @@ module riscv_cpu (
         .mem_write_en(mem_write_en),
         .pc_sel(pc_sel),
         .reg_data_sel(reg_data_sel),
-        .branch_taken(branch_taken_alu),
         .jump_taken(jump_taken)
     );
 
