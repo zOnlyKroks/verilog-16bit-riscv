@@ -40,10 +40,10 @@ async def test_riscv_processor(dut):
         await RisingEdge(dut.clk)
 
         # Check if output is valid
-        if dut.uio_out.value & 0x80:  # valid signal is bit 7
-            pc = dut.uo_out.value & 0x0F  # PC lower 4 bits
-            reg_out = (dut.uo_out.value >> 4) & 0x0F  # Register output
-            halt = (dut.uio_out.value >> 6) & 0x01  # Halt signal
+        if int(dut.uio_out.value) & 0x80:  # valid signal is bit 7
+            pc = int(dut.uo_out.value) & 0x0F  # PC lower 4 bits
+            reg_out = (int(dut.uo_out.value) >> 4) & 0x0F  # Register output
+            halt = (int(dut.uio_out.value) >> 6) & 0x01  # Halt signal
 
             pc_values.append(pc)
             reg_values.append(reg_out)
@@ -90,11 +90,11 @@ async def test_step_mode(dut):
     await ClockCycles(dut.clk, 5)
 
     # In step mode, processor should stay at first fetch state
-    initial_pc = dut.uo_out.value & 0x0F
+    initial_pc = int(dut.uo_out.value) & 0x0F
     await ClockCycles(dut.clk, 10)
 
     # PC should not advance in step mode during fetch
-    current_pc = dut.uo_out.value & 0x0F
+    current_pc = int(dut.uo_out.value) & 0x0F
     # Note: This test might need adjustment based on exact step mode implementation
 
     dut._log.info(f"Step mode test: Initial PC=0x{initial_pc:X}, After 10 cycles PC=0x{current_pc:X}")

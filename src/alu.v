@@ -39,7 +39,7 @@ module alu (
     wire signed [7:0] b_signed = b;
 
     // ALU operation logic
-    always_comb begin
+    always @(*) begin
         case (alu_op)
             ALU_ADD:  result = add_result[7:0];
             ALU_SUB:  result = sub_result[7:0];
@@ -48,9 +48,9 @@ module alu (
             ALU_XOR:  result = a ^ b;
             ALU_SLT:  result = (a_signed < b_signed) ? 8'h01 : 8'h00;
             ALU_SLTU: result = (a < b) ? 8'h01 : 8'h00;
-            ALU_SLL:  result = a << b[2:0]; // Only use lower 3 bits for shift amount
-            ALU_SRL:  result = a >> b[2:0];
-            ALU_SRA:  result = a_signed >>> b[2:0];
+            ALU_SLL:  result = a << (b & 8'h07); // Only use lower 3 bits for shift amount
+            ALU_SRL:  result = a >> (b & 8'h07);
+            ALU_SRA:  result = a_signed >>> (b & 8'h07);
 
             // Branch operations (result indicates if branch should be taken)
             ALU_BEQ:  result = (a == b) ? 8'h01 : 8'h00;

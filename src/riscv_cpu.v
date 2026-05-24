@@ -130,7 +130,7 @@ module riscv_cpu (
     end
 
     // Next state logic
-    always_comb begin
+    always @(*) begin
         case (state)
             STATE_FETCH_0: next_state = step_mode ? state : STATE_FETCH_1;
             STATE_FETCH_1: next_state = STATE_FETCH_2;
@@ -168,7 +168,7 @@ module riscv_cpu (
         .write_addr(rd[3:0]),
         .write_data(reg_data_sel == 2'b00 ? alu_out :
                    reg_data_sel == 2'b01 ? mem_data_out :
-                   reg_data_sel == 2'b10 ? pc + 1 :
+                   reg_data_sel == 2'b10 ? (pc + 1) :
                    reg_data_sel == 2'b11 ? imm_i : alu_out),
         .write_enable(reg_write_en && (state == STATE_WRITEBACK)),
         .data_out1(reg_data1),
@@ -176,10 +176,15 @@ module riscv_cpu (
     );
 
     // ALU input mux
-    wire [7:0] alu_b = (opcode == 7'b0010011) ? imm_i :        // I-type uses immediate
-                       (opcode == 7'b0000011) ? imm_i :        // Load uses immediate
-                       (opcode == 7'b0100011) ? imm_s :        // Store uses immediate
-                       reg_data2;                               // R-type uses register
+    reg [7:0] alu_b;
+    always @(*) begin
+        case (opcode)
+            7'b0010011: alu_b = imm_i;        // I-type uses immediate
+            7'b0000011: alu_b = imm_i;        // Load uses immediate
+            7'b0100011: alu_b = imm_s;        // Store uses immediate
+            default:    alu_b = reg_data2;    // R-type uses register
+        endcase
+    end
 
     alu alu_inst (
         .a(reg_data1),

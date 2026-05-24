@@ -35,7 +35,7 @@ module control_unit (
     localparam OP_SYSTEM  = 7'b1110011;  // System instructions
 
     // ALU operation mapping
-    always_comb begin
+    always @(*) begin
         // Default values
         alu_op = 4'b0000;
         reg_write_en = 1'b0;
