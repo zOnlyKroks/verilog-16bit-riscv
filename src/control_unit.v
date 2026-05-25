@@ -8,9 +8,8 @@
 `default_nettype none
 
 module control_unit (
-    input  wire [6:0] opcode,      // Instruction opcode
+    input  wire [3:0] opcode,      // 4-bit opcode for 16-bit instructions
     input  wire [2:0] funct3,      // Function field 3
-    input  wire [6:0] funct7,      // Function field 7
     output reg  [4:0] alu_op,      // ALU operation code (expanded to 5 bits)
     output reg        reg_write_en, // Register write enable
     output reg        mem_read_en,  // Memory read enable
@@ -20,15 +19,15 @@ module control_unit (
     // output reg        jump_taken   // Removed unused signal
 );
 
-    // RISC-V instruction opcodes (only implemented ones)
-    localparam OP_LUI     = 7'b0110111;  // Load Upper Immediate
-    localparam OP_JAL     = 7'b1101111;  // Jump and Link
-    localparam OP_JALR    = 7'b1100111;  // Jump and Link Register
-    localparam OP_BRANCH  = 7'b1100011;  // Branch instructions
-    localparam OP_LOAD    = 7'b0000011;  // Load instructions
-    localparam OP_STORE   = 7'b0100011;  // Store instructions
-    localparam OP_IMM     = 7'b0010011;  // Immediate arithmetic
-    localparam OP_REG     = 7'b0110011;  // Register-register arithmetic
+    // Compact 4-bit opcodes for 16-bit instructions
+    localparam OP_IMM     = 4'b0000;  // Immediate arithmetic
+    localparam OP_REG     = 4'b0001;  // Register-register arithmetic
+    localparam OP_LOAD    = 4'b0010;  // Load instructions
+    localparam OP_STORE   = 4'b0011;  // Store instructions
+    localparam OP_BRANCH  = 4'b0100;  // Branch instructions
+    localparam OP_JAL     = 4'b0101;  // Jump and Link
+    localparam OP_JALR    = 4'b0110;  // Jump and Link Register
+    localparam OP_LUI     = 4'b0111;  // Load Upper Immediate
 
     // ALU operation mapping
     always @(*) begin
@@ -53,10 +52,7 @@ module control_unit (
                     3'b110: alu_op = 5'b00011; // ORI
                     3'b111: alu_op = 5'b00010; // ANDI
                     3'b001: alu_op = 5'b00111; // SLLI
-                    3'b101: begin
-                        if (funct7[5]) alu_op = 5'b01001; // SRAI
-                        else           alu_op = 5'b01000; // SRLI
-                    end
+                    3'b101: alu_op = 5'b01000; // SRLI (simplified - no arithmetic shift for immediates)
                     default: alu_op = 5'b00000;
                 endcase
             end
@@ -65,18 +61,14 @@ module control_unit (
                 reg_write_en = 1'b1;
                 reg_data_sel = 2'b00; // ALU result
                 case (funct3)
-                    3'b000: begin
-                        if (funct7 == 7'b0000001) alu_op = 5'b01010;      // MUL (simplified)
-                        else if (funct7[5])       alu_op = 5'b00001;      // SUB
-                        else                      alu_op = 5'b00000;      // ADD
-                    end
-                    3'b001: alu_op = 5'b00111;      // SLL only (removed MULH for area)
-                    3'b010: alu_op = 5'b00101;      // SLT
-                    3'b011: alu_op = 5'b00110;      // SLTU
-                    3'b100: alu_op = 5'b00100;      // XOR
-                    3'b101: alu_op = 5'b01000;      // SRL only (removed SRA for area)
-                    3'b110: alu_op = 5'b00011;      // OR
-                    3'b111: alu_op = 5'b00010;      // AND
+                    3'b000: alu_op = 5'b00000;      // ADD
+                    3'b001: alu_op = 5'b00001;      // SUB
+                    3'b010: alu_op = 5'b01010;      // MUL
+                    3'b011: alu_op = 5'b00111;      // SLL
+                    3'b100: alu_op = 5'b01000;      // SRL
+                    3'b101: alu_op = 5'b01001;      // SRA
+                    3'b110: alu_op = 5'b00100;      // XOR
+                    3'b111: alu_op = 5'b00011;      // OR
                     default: alu_op = 5'b00000;
                 endcase
             end

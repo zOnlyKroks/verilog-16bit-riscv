@@ -30,8 +30,8 @@ module shared_multiplier (
     input  wire [15:0] shift_result // Shifter result
 );
 
-    // Ultra-simple combinational multiplier (16x16→16)
-    wire [15:0] product = a[7:0] * b[7:0];  // Only multiply lower 8 bits for area savings
+    // Simple but functional 16x16→16 multiplier
+    wire [31:0] product = a * b;
 
     always_ff @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
@@ -39,7 +39,7 @@ module shared_multiplier (
             result <= 16'h0000;
         end else begin
             if (start) begin
-                result <= product;  // Always return low 16 bits
+                result <= product[15:0];  // Always return low 16 bits
                 done <= 1'b1;
             end else begin
                 done <= 1'b0;

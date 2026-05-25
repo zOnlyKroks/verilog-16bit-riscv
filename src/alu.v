@@ -27,7 +27,7 @@ module alu (
     localparam ALU_SLTU = 5'b00110;  // Set less than unsigned
     localparam ALU_SLL  = 5'b00111;  // Shift left logical
     localparam ALU_SRL  = 5'b01000;  // Shift right logical
-    // localparam ALU_SRA  = 5'b01001;  // Removed for area optimization
+    localparam ALU_SRA  = 5'b01001;  // Shift right arithmetic
     localparam ALU_MUL  = 5'b01010;  // Multiplication (simplified)
     // localparam ALU_MULH = 5'b01011;  // Removed for area optimization
     localparam ALU_BEQ  = 5'b10000;  // Branch equal
@@ -48,9 +48,9 @@ module alu (
     wire less_than_unsigned = (a < b);
     wire equal = (a == b);
 
-    // Simplified barrel shifter logic
+    // Barrel shifter logic
     wire shift_left = (alu_op == ALU_SLL);
-    wire shift_arith = 1'b0;  // No arithmetic shift
+    wire shift_arith = (alu_op == ALU_SRA);
 
     // Multiplication control (simplified)
     wire mul_start = (alu_op == ALU_MUL);
@@ -126,8 +126,8 @@ module alu (
             ALU_SLT:  result = less_than_signed ? 16'h0001 : 16'h0000;
             ALU_SLTU: result = less_than_unsigned ? 16'h0001 : 16'h0000;
 
-            // Shift operations (simplified barrel shifter)
-            ALU_SLL, ALU_SRL: result = shift_result;
+            // Shift operations (barrel shifter)
+            ALU_SLL, ALU_SRL, ALU_SRA: result = shift_result;
 
             // Multiplication operations (simplified)
             ALU_MUL: result = mul_done ? mul_result : 16'h0000;

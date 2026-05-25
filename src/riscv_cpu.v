@@ -34,9 +34,9 @@ module riscv_cpu (
 
     // Internal registers and wires
     reg [15:0] pc;                    // 16-bit PC for 64KB addressing
-    reg [31:0] instruction;
-    reg [1:0] fetch_counter;          // Track which byte we're fetching
-    reg [7:0] instruction_bytes [3:0]; // Buffer for instruction bytes
+    reg [15:0] instruction;           // 16-bit instructions for area efficiency
+    reg [0:0] fetch_counter;          // Track which byte (0 or 1)
+    reg [7:0] instruction_bytes [1:0]; // Buffer for 2 instruction bytes
     wire [15:0] alu_out;
     wire [15:0] reg_data1, reg_data2;
 
@@ -58,20 +58,19 @@ module riscv_cpu (
     wire branch_taken_alu;
     // wire jump_taken; // Removed unused signal
 
-    // Optimized instruction decode (only extract needed bits)
-    wire [6:0] opcode = instruction[6:0];
-    wire [2:0] rd     = instruction[9:7];    // Only 3 bits for 6 registers
-    wire [2:0] funct3 = instruction[14:12];
-    wire [2:0] rs1    = instruction[17:15];  // Only 3 bits for 6 registers
-    wire [2:0] rs2    = instruction[22:20];  // Only 3 bits for 6 registers
-    wire [6:0] funct7 = instruction[31:25];
+    // Compact 16-bit instruction decode
+    wire [3:0] opcode = instruction[15:12];  // 4-bit opcode (16 operations)
+    wire [2:0] rd     = instruction[11:9];   // 3 bits for 6 registers
+    wire [2:0] rs1    = instruction[8:6];    // 3 bits for 6 registers
+    wire [2:0] rs2    = instruction[5:3];    // 3 bits for 6 registers
+    wire [2:0] funct3 = instruction[2:0];    // 3-bit function code
 
-    // Optimized shared immediate generation
-    wire [11:0] imm_base = instruction[31:20];  // Base immediate bits
-    wire [15:0] imm_i = {{4{instruction[31]}}, imm_base};
-    wire [15:0] imm_s = {{4{instruction[31]}}, instruction[31:25], instruction[11:7]};
-    wire [15:0] imm_b = {{4{instruction[31]}}, instruction[7], instruction[30:25], instruction[11:8], 1'b0};
-    wire [15:0] imm_j = {{4{instruction[31]}}, imm_base}; // Reuse base for J-type
+    // Compact immediate generation for 16-bit instructions
+    wire [5:0] imm_base = instruction[5:0];     // 6-bit immediate from rs2+funct3 fields
+    wire [15:0] imm_i = {{10{imm_base[5]}}, imm_base}; // Sign-extend 6-bit immediate
+    wire [15:0] imm_s = imm_i;                  // Same encoding for stores
+    wire [15:0] imm_b = {{9{imm_base[5]}}, imm_base, 1'b0}; // Branch offset
+    wire [15:0] imm_j = {{8{imm_base[5]}}, imm_base, 2'b00}; // Jump offset
 
     // Memory mapping for 64KB EEPROM
     // 0x0000-0x7FFF: Instruction memory (32KB)
@@ -99,16 +98,35 @@ module riscv_cpu (
 
             case (state)
                 STATE_FETCH: begin
-                    // Simplified instruction fetch (assume 32-bit instruction available)
-                    instruction <= 32'h00100093;  // Simple ADDI instruction for now
-                    fetch_counter <= 2'b00;
+                    // Efficient 16-bit instruction fetch (2 bytes)
+                    if (!i2c_start) begin
+                        i2c_address <= (pc << 1) + fetch_counter;  // Byte address for 16-bit words
+                        i2c_read_write <= 1'b1;    // Read
+                        i2c_start <= 1'b1;
+                    end else if (i2c_ready && !i2c_error) begin
+                        i2c_start <= 1'b0;
+                        instruction_bytes[fetch_counter] <= i2c_read_data;
+
+                        if (fetch_counter == 1'b1) begin
+                            // Assemble complete 16-bit instruction
+                            instruction <= {i2c_read_data, instruction_bytes[0]};
+                            fetch_counter <= 1'b0;
+                        end else begin
+                            fetch_counter <= fetch_counter + 1;
+                        end
+                    end
                 end
 
                 STATE_EXECUTE: begin
-                    // Combined decode/execute/memory in single state
-                    // All ALU operations happen here
-                    // Memory operations simplified
-                    mem_data_out <= 16'h0000;  // Simplified memory
+                    // Combined decode/execute/memory
+                    if ((opcode == 7'b0000011) && !i2c_start) begin // Load
+                        i2c_address <= 16'h8000 + alu_out[15:0];
+                        i2c_read_write <= 1'b1;
+                        i2c_start <= 1'b1;
+                    end else if (i2c_ready && !i2c_error && mem_read_en) begin
+                        i2c_start <= 1'b0;
+                        mem_data_out <= {8'h00, i2c_read_data};
+                    end
                 end
 
                 STATE_WRITEBACK: begin
@@ -124,15 +142,25 @@ module riscv_cpu (
         end
     end
 
-    // Ultra-simplified next state logic
+    // Functional next state logic
     always_comb begin
         case (state)
-            STATE_FETCH: next_state = STATE_EXECUTE;
+            STATE_FETCH: begin
+                if (i2c_ready && !i2c_error)
+                    next_state = STATE_EXECUTE;
+                else
+                    next_state = STATE_FETCH;
+            end
 
-            STATE_EXECUTE: next_state = STATE_WRITEBACK;
+            STATE_EXECUTE: begin
+                if ((opcode == 7'b0000011) && !i2c_ready) // Load waiting
+                    next_state = STATE_EXECUTE;
+                else
+                    next_state = STATE_WRITEBACK;
+            end
 
             STATE_WRITEBACK: begin
-                if (instruction == 32'h00000000)  // NOP instruction = halt
+                if (instruction == 32'h00000000)  // NOP = halt
                     next_state = STATE_HALT;
                 else
                     next_state = STATE_FETCH;
@@ -207,7 +235,6 @@ module riscv_cpu (
     control_unit ctrl (
         .opcode(opcode),
         .funct3(funct3),
-        .funct7(funct7),
         .alu_op(alu_op),
         .reg_write_en(reg_write_en),
         .mem_read_en(mem_read_en),
