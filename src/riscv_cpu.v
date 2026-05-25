@@ -72,20 +72,20 @@ module riscv_cpu (
     wire [7:0] imm_b = instruction[19:12];  // B-type simplified to 8-bit
     wire [7:0] imm_j = instruction[19:12];  // J-type (simplified)
 
-    // Data memory (8-byte RAM) - heavily reduced for area constraints
-    reg [7:0] data_memory [7:0];
-    wire [2:0] mem_addr = alu_out[2:0]; // 3 bits for 8 bytes
+    // Data memory (12-byte RAM) - small but useful size
+    reg [7:0] data_memory [11:0];
+    wire [3:0] mem_addr = alu_out[3:0]; // 4 bits for 12 bytes
 
-    // Memory read/write logic
-    assign mem_data_out = data_memory[mem_addr];
+    // Memory read/write logic - only access valid addresses
+    assign mem_data_out = (mem_addr < 12) ? data_memory[mem_addr] : 8'h00;
 
     always_ff @(posedge clk) begin
-        if (mem_write_en && state == STATE_EXECUTE) begin
+        if (mem_write_en && state == STATE_EXECUTE && mem_addr < 12) begin
             data_memory[mem_addr] <= reg_data2;
         end
     end
 
-    // Calculate effective address for instruction fetch (4 bits for 12 bytes)
+    // Calculate effective address for instruction fetch (4 bits for 16 bytes)
     wire [7:0] fetch_addr_full = (pc << 2) + {6'b0, fetch_counter};
     wire [3:0] fetch_addr = fetch_addr_full[3:0];
 

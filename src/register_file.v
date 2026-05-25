@@ -19,24 +19,24 @@ module register_file (
     output wire [7:0]  data_out2     // Read port 2 data
 );
 
-    // Register array: 3 x 8-bit registers (x0, x1, x2)
-    reg [7:0] registers [2:0];
+    // Register array: 4 x 8-bit registers (x0, x1, x2, x3)
+    reg [7:0] registers [3:0];
 
     // Initialize registers
     integer i;
     always_ff @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
-            for (i = 0; i < 3; i = i + 1) begin
+            for (i = 0; i < 4; i = i + 1) begin
                 registers[i] <= 8'h00;
             end
-        end else if (write_enable && write_addr != 2'h0 && write_addr <= 2'h2) begin
+        end else if (write_enable && write_addr != 2'h0) begin
             // Don't write to register x0 (always zero in RISC-V) and only write to valid registers
             registers[write_addr] <= write_data;
         end
     end
 
-    // Read ports (combinatorial) - handle addresses > 2 as zero
-    assign data_out1 = (read_addr1 == 2'h0 || read_addr1 > 2'h2) ? 8'h00 : registers[read_addr1];
-    assign data_out2 = (read_addr2 == 2'h0 || read_addr2 > 2'h2) ? 8'h00 : registers[read_addr2];
+    // Read ports (combinatorial) - x0 always reads as zero
+    assign data_out1 = (read_addr1 == 2'h0) ? 8'h00 : registers[read_addr1];
+    assign data_out2 = (read_addr2 == 2'h0) ? 8'h00 : registers[read_addr2];
 
 endmodule

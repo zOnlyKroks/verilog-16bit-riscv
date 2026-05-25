@@ -17,8 +17,8 @@ module instruction_memory (
     output reg  [7:0]  data_out     // 8-bit instruction data output
 );
 
-    // Memory array: 12 bytes (3 instructions x 4 bytes each)
-    reg [7:0] memory [11:0];
+    // Memory array: 16 bytes (4 instructions x 4 bytes each)
+    reg [7:0] memory [15:0];
 
     // Programming interface state
     reg [3:0] prog_addr;
@@ -53,11 +53,11 @@ module instruction_memory (
     integer i;
     initial begin
         // Initialize all memory to zero
-        for (i = 0; i < 12; i = i + 1) begin
+        for (i = 0; i < 16; i = i + 1) begin
             memory[i] = 8'h00;
         end
 
-        // Test program: 3 instructions using x0, x1, x2
+        // Test program: 4 instructions using x0, x1, x2, x3
         // Instruction 0: ADDI x1, x0, 1    // x1 = 1
         // 0x00100093 = ADDI x1, x0, 1
         memory[0]  = 8'h93; // [7:0]   = opcode + rd[0]
@@ -78,6 +78,13 @@ module instruction_memory (
         memory[9]  = 8'h81; // [15:8]  = rd[4:1] + funct3
         memory[10] = 8'h00; // [23:16] = imm[7:0] + rs1[0]
         memory[11] = 8'h00; // [31:24] = imm[11:8] + rs1[4:1]
+
+        // Instruction 3: ADDI x3, x2, 1    // x3 = x2 + 1
+        // 0x00110193 = ADDI x3, x2, 1
+        memory[12] = 8'h93; // [7:0]   = opcode + rd[0]
+        memory[13] = 8'h01; // [15:8]  = rd[4:1] + funct3 (x3 = rd[2:0] = 011)
+        memory[14] = 8'h11; // [23:16] = imm[7:0] + rs1[0] (rs1 = x2)
+        memory[15] = 8'h00; // [31:24] = imm[11:8] + rs1[4:1]
     end
 
     // Read logic
