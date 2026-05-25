@@ -28,6 +28,7 @@ module control_unit (
     localparam OP_JAL     = 4'b0101;  // Jump and Link
     localparam OP_JALR    = 4'b0110;  // Jump and Link Register
     localparam OP_LUI     = 4'b0111;  // Load Upper Immediate
+    localparam OP_LOGIC   = 4'b1000;  // Logic operations (AND, OR, XOR)
 
     // ALU operation mapping
     always @(*) begin
@@ -63,12 +64,12 @@ module control_unit (
                 case (funct3)
                     3'b000: alu_op = 5'b00000;      // ADD
                     3'b001: alu_op = 5'b00001;      // SUB
-                    3'b010: alu_op = 5'b00111;      // SLL
-                    3'b011: alu_op = 5'b01000;      // SRL
+                    3'b010: alu_op = 5'b01010;      // MUL
+                    3'b011: alu_op = 5'b00111;      // SLL
                     3'b100: alu_op = 5'b01001;      // SRA
                     3'b101: alu_op = 5'b00101;      // SLT
-                    3'b110: alu_op = 5'b00011;      // OR
-                    3'b111: alu_op = 5'b00010;      // AND
+                    3'b110: alu_op = 5'b01000;      // SRL
+                    3'b111: alu_op = 5'b00110;      // SLTU
                     default: alu_op = 5'b00000;
                 endcase
             end
@@ -116,6 +117,17 @@ module control_unit (
             OP_LUI: begin
                 reg_write_en = 1'b1;
                 reg_data_sel = 2'b11; // Immediate value
+            end
+
+            OP_LOGIC: begin
+                reg_write_en = 1'b1;
+                reg_data_sel = 2'b00; // ALU result
+                case (funct3)
+                    3'b000: alu_op = 5'b00010;      // AND
+                    3'b001: alu_op = 5'b00011;      // OR
+                    3'b010: alu_op = 5'b00100;      // XOR
+                    default: alu_op = 5'b00010;
+                endcase
             end
 
             default: begin

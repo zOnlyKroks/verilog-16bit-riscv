@@ -28,7 +28,7 @@ module alu (
     localparam ALU_SLL  = 5'b00111;  // Shift left logical
     localparam ALU_SRL  = 5'b01000;  // Shift right logical
     localparam ALU_SRA  = 5'b01001;  // Shift right arithmetic
-    // localparam ALU_MUL  = 5'b01010;  // Removed for area optimization
+    localparam ALU_MUL  = 5'b01010;  // Multiplication
     // localparam ALU_MULH = 5'b01011;  // Removed for area optimization
     localparam ALU_BEQ  = 5'b10000;  // Branch equal
     localparam ALU_BNE  = 5'b10001;  // Branch not equal
@@ -89,7 +89,10 @@ module alu (
             // Shift operations (barrel shifter)
             ALU_SLL, ALU_SRL, ALU_SRA: result = shift_result;
 
-            // Multiplication removed for area optimization
+            // Simple multiplication
+            ALU_MUL: begin
+                result = a * b;  // Direct 16x16→16 multiplication (truncated)
+            end
 
             // Branch operations (shared comparison logic)
             ALU_BEQ:  result = equal ? 16'h0001 : 16'h0000;
