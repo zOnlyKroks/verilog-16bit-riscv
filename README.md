@@ -1,6 +1,6 @@
-# 8-bit RISC-V Processor for TinyTapeout
+# 16-bit RISC-V Processor for TinyTapeout
 
-Compact RISC-V processor implementation with external EEPROM memory optimized for silicon fabrication via TinyTapeout IHP shuttle.
+Full-featured RISC-V processor implementation with external EEPROM memory optimized for silicon fabrication via TinyTapeout IHP shuttle.
 
 **Author**: Finn Rades (zOnlyKroks)  
 **Target**: TinyTapeout 1x2 tile (334x108 μm)  
@@ -9,8 +9,8 @@ Compact RISC-V processor implementation with external EEPROM memory optimized fo
 ## Technical Specifications
 
 ### Architecture
-- **Datapath**: 8-bit Harvard architecture with external memory
-- **Registers**: 4 general-purpose (x0-x3), x0 hardwired to zero
+- **Datapath**: 16-bit Harvard architecture with external memory
+- **Registers**: 8 general-purpose (x0-x7), x0 hardwired to zero
 - **External Memory**: 64KB EEPROM via I2C (instruction + data)
 - **Memory Interface**: I2C master controller (100kHz)
 - **Execution**: Multi-cycle (10 states including I2C memory access)
@@ -264,11 +264,11 @@ Instructions referencing x4-x31 will use x0 (reads) or be ignored (writes).
 
 ## Limitations
 
-- **Reduced register set**: Only 4 of 32 RISC-V registers
+- **Reduced register set**: Only 8 of 32 RISC-V registers (x0-x7)
 - **External memory dependency**: Requires I2C EEPROM for operation
 - **Slower execution**: ~200μs per instruction due to I2C overhead
 - **No interrupts**: Polling-based I/O only  
-- **8-bit datapath**: Operations limited to 8-bit values
+- **16-bit datapath**: Operations on 16-bit values (not full 32-bit)
 - **No floating point**: Integer operations only
 - **Limited I2C speed**: 100kHz maximum for reliable operation
 
@@ -276,9 +276,12 @@ Instructions referencing x4-x31 will use x0 (reads) or be ignored (writes).
 
 ✅ **Complete RV32I base instruction set**  
 ✅ **M Extension**: Full multiplication, division, and remainder operations  
+✅ **16-bit datapath**: Doubled processing width from 8-bit  
+✅ **8 registers**: Expanded from 4 to 8 general-purpose registers (x0-x7)  
 ✅ **All shift operations**: Logical and arithmetic shifts  
 ✅ **All comparison operations**: Signed and unsigned variants  
 ✅ **All branch operations**: Including unsigned comparisons  
+✅ **Hardware multiply/divide**: Single-cycle 16×16→32-bit multiplication  
 ✅ **External 64KB memory**: Via I2C EEPROM interface
 
 ## File Structure

@@ -1,5 +1,5 @@
 /*
- * 8-bit ALU for RISC-V CPU
+ * 16-bit ALU for RISC-V CPU
  * Copyright (c) 2024 Finn Rades (zOnlyKroks)
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -7,11 +7,11 @@
 `default_nettype none
 
 module alu (
-    input  wire [7:0] a,        // First operand
-    input  wire [7:0] b,        // Second operand
-    input  wire [4:0] alu_op,   // ALU operation selector (expanded to 5 bits)
-    output reg  [7:0] result,   // ALU result
-    output wire       zero_flag // Zero flag for branches
+    input  wire [15:0] a,        // First operand
+    input  wire [15:0] b,        // Second operand
+    input  wire [4:0]  alu_op,   // ALU operation selector (expanded to 5 bits)
+    output reg  [15:0] result,   // ALU result
+    output wire        zero_flag // Zero flag for branches
 );
 
     // ALU operation codes - expanded to 5 bits with full instruction set
@@ -40,38 +40,38 @@ module alu (
     localparam ALU_BGEU = 5'b11101;  // Branch greater/equal unsigned
 
     // Internal signals
-    wire [8:0] add_result = {1'b0, a} + {1'b0, b};
-    wire [8:0] sub_result = {1'b0, a} - {1'b0, b};
-    wire signed [7:0] a_signed = a;
-    wire signed [7:0] b_signed = b;
-    wire [2:0] shift_amount = b[2:0];  // Use lower 3 bits for shift amount
+    wire [16:0] add_result = {1'b0, a} + {1'b0, b};
+    wire [16:0] sub_result = {1'b0, a} - {1'b0, b};
+    wire signed [15:0] a_signed = a;
+    wire signed [15:0] b_signed = b;
+    wire [3:0] shift_amount = b[3:0];  // Use lower 4 bits for shift amount
 
     // Multiplication logic
-    wire [15:0] mul_full = a * b;                          // Full multiplication result
-    wire [7:0] mul_result = mul_full[7:0];                 // Multiplication low
-    wire [7:0] mulh_result = mul_full[15:8];               // Multiplication high (signed)
-    wire [15:0] mulhu_full = a * b;                        // Unsigned multiplication
-    wire [7:0] mulhu_result = mulhu_full[15:8];            // Multiplication high (unsigned)
+    wire [31:0] mul_full = a * b;                          // Full multiplication result
+    wire [15:0] mul_result = mul_full[15:0];               // Multiplication low
+    wire [15:0] mulh_result = mul_full[31:16];             // Multiplication high (signed)
+    wire [31:0] mulhu_full = a * b;                        // Unsigned multiplication
+    wire [15:0] mulhu_result = mulhu_full[31:16];          // Multiplication high (unsigned)
 
     // Division logic (simple implementation)
-    wire [7:0] div_result = (b != 8'h00) ? a / b : 8'hFF;  // Signed division
-    wire [7:0] divu_result = (b != 8'h00) ? a / b : 8'hFF; // Unsigned division
-    wire [7:0] rem_result = (b != 8'h00) ? a % b : a;      // Signed remainder
-    wire [7:0] remu_result = (b != 8'h00) ? a % b : a;     // Unsigned remainder
+    wire [15:0] div_result = (b != 16'h0000) ? a / b : 16'hFFFF;  // Signed division
+    wire [15:0] divu_result = (b != 16'h0000) ? a / b : 16'hFFFF; // Unsigned division
+    wire [15:0] rem_result = (b != 16'h0000) ? a % b : a;          // Signed remainder
+    wire [15:0] remu_result = (b != 16'h0000) ? a % b : a;         // Unsigned remainder
 
     // ALU operation logic - full functionality with division
     always @(*) begin
         case (alu_op)
             // Arithmetic operations
-            ALU_ADD:  result = add_result[7:0];
-            ALU_SUB:  result = sub_result[7:0];
+            ALU_ADD:  result = add_result[15:0];
+            ALU_SUB:  result = sub_result[15:0];
             ALU_AND:  result = a & b;
             ALU_OR:   result = a | b;
             ALU_XOR:  result = a ^ b;
 
             // Comparison operations
-            ALU_SLT:  result = (a_signed < b_signed) ? 8'h01 : 8'h00;
-            ALU_SLTU: result = (a < b) ? 8'h01 : 8'h00;
+            ALU_SLT:  result = (a_signed < b_signed) ? 16'h0001 : 16'h0000;
+            ALU_SLTU: result = (a < b) ? 16'h0001 : 16'h0000;
 
             // Shift operations
             ALU_SLL:  result = a << shift_amount;
@@ -90,18 +90,18 @@ module alu (
             ALU_REMU: result = remu_result;
 
             // Branch operations (result indicates if branch should be taken)
-            ALU_BEQ:  result = (a == b) ? 8'h01 : 8'h00;
-            ALU_BNE:  result = (a != b) ? 8'h01 : 8'h00;
-            ALU_BLT:  result = (a_signed < b_signed) ? 8'h01 : 8'h00;
-            ALU_BGE:  result = (a_signed >= b_signed) ? 8'h01 : 8'h00;
-            ALU_BLTU: result = (a < b) ? 8'h01 : 8'h00;
-            ALU_BGEU: result = (a >= b) ? 8'h01 : 8'h00;
+            ALU_BEQ:  result = (a == b) ? 16'h0001 : 16'h0000;
+            ALU_BNE:  result = (a != b) ? 16'h0001 : 16'h0000;
+            ALU_BLT:  result = (a_signed < b_signed) ? 16'h0001 : 16'h0000;
+            ALU_BGE:  result = (a_signed >= b_signed) ? 16'h0001 : 16'h0000;
+            ALU_BLTU: result = (a < b) ? 16'h0001 : 16'h0000;
+            ALU_BGEU: result = (a >= b) ? 16'h0001 : 16'h0000;
 
-            default:  result = 8'h00;
+            default:  result = 16'h0000;
         endcase
     end
 
     // Zero flag generation
-    assign zero_flag = (result == 8'h00);
+    assign zero_flag = (result == 16'h0000);
 
 endmodule

@@ -1,5 +1,5 @@
 /*
- * 8-bit RISC-V CPU Core
+ * 16-bit RISC-V CPU Core
  * Copyright (c) 2024 Finn Rades (zOnlyKroks)
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -18,8 +18,8 @@ module riscv_cpu (
     input  wire        debug_en,
 
     // Outputs
-    output wire [7:0]  pc_out,
-    output wire [7:0]  reg_out,
+    output wire [15:0] pc_out,
+    output wire [15:0] reg_out,
     output wire [15:0] addr_out,      // 16-bit addressing for 64KB
     output wire        halt,
     output wire        valid
@@ -46,8 +46,8 @@ module riscv_cpu (
     reg [31:0] instruction;
     reg [1:0] fetch_counter;          // Track which byte we're fetching
     reg [7:0] instruction_bytes [3:0]; // Buffer for instruction bytes
-    wire [7:0] alu_out;
-    wire [7:0] reg_data1, reg_data2;
+    wire [15:0] alu_out;
+    wire [15:0] reg_data1, reg_data2;
 
     // I2C controller interface
     reg        i2c_start;
@@ -75,20 +75,20 @@ module riscv_cpu (
     wire [4:0] rs2    = instruction[24:20];
     wire [6:0] funct7 = instruction[31:25];
 
-    // Immediate generation (8-bit)
-    wire [7:0] imm_i = instruction[19:12];  // I-type immediate
-    wire [7:0] imm_s = instruction[19:12];  // S-type simplified
-    wire [7:0] imm_b = instruction[19:12];  // B-type simplified
-    wire [7:0] imm_j = instruction[19:12];  // J-type simplified
+    // Immediate generation (16-bit)
+    wire [15:0] imm_i = {{4{instruction[31]}}, instruction[31:20]};  // I-type immediate (sign-extended)
+    wire [15:0] imm_s = {{4{instruction[31]}}, instruction[31:25], instruction[11:7]};  // S-type immediate
+    wire [15:0] imm_b = {{4{instruction[31]}}, instruction[7], instruction[30:25], instruction[11:8], 1'b0};  // B-type immediate
+    wire [15:0] imm_j = {{4{instruction[31]}}, instruction[19:12], instruction[20], instruction[30:21], 1'b0}; // J-type immediate
 
     // Memory mapping for 64KB EEPROM
     // 0x0000-0x7FFF: Instruction memory (32KB)
     // 0x8000-0xFFFF: Data memory (32KB)
     wire [15:0] instruction_addr = (pc << 2) + {14'b0, fetch_counter};
-    wire [15:0] data_addr = 16'h8000 + {8'h00, alu_out}; // Data in upper 32KB
+    wire [15:0] data_addr = 16'h8000 + alu_out[15:0]; // Data in upper 32KB
 
-    // Memory data output from I2C
-    reg [7:0] mem_data_out;
+    // Memory data output from I2C (16-bit value assembled from bytes)
+    reg [15:0] mem_data_out;
 
     // State machine with I2C memory interface
     always_ff @(posedge clk or negedge rst_n) begin
@@ -101,7 +101,7 @@ module riscv_cpu (
             i2c_read_write <= 1'b1;  // Default to read
             i2c_address <= 16'h0000;
             i2c_write_data <= 8'h00;
-            mem_data_out <= 8'h00;
+            mem_data_out <= 16'h0000;
         end else begin
             state <= next_state;
 
@@ -242,12 +242,12 @@ module riscv_cpu (
     register_file regfile (
         .clk(clk),
         .rst_n(rst_n),
-        .read_addr1(rs1[1:0]), // Source register 1 for ALU (2-bit for 3 regs)
-        .read_addr2(rs2[1:0]), // Source register 2 for ALU (2-bit for 3 regs)
-        .write_addr(rd[1:0]),  // Destination register (2-bit for 3 regs)
+        .read_addr1(rs1[2:0]), // Source register 1 for ALU (3-bit for 8 regs)
+        .read_addr2(rs2[2:0]), // Source register 2 for ALU (3-bit for 8 regs)
+        .write_addr(rd[2:0]),  // Destination register (3-bit for 8 regs)
         .write_data(reg_data_sel == 2'b00 ? alu_out :
                    reg_data_sel == 2'b01 ? mem_data_out :
-                   reg_data_sel == 2'b10 ? pc[7:0] + 8'd1 :
+                   reg_data_sel == 2'b10 ? pc + 16'd1 :
                    reg_data_sel == 2'b11 ? imm_i : alu_out),
         .write_enable(reg_write_en && (state == STATE_WRITEBACK)),
         .data_out1(reg_data1), // rs1 data for ALU
@@ -255,7 +255,7 @@ module riscv_cpu (
     );
 
     // ALU input mux
-    reg [7:0] alu_b;
+    reg [15:0] alu_b;
     always @(*) begin
         case (opcode)
             7'b0010011: alu_b = imm_i;        // I-type uses immediate
@@ -266,7 +266,7 @@ module riscv_cpu (
     end
 
     // rs1 data is now available directly from register file
-    wire [7:0] rs1_data = reg_data1;
+    wire [15:0] rs1_data = reg_data1;
 
     alu alu_inst (
         .a(rs1_data),  // Use correct source register value
@@ -290,8 +290,8 @@ module riscv_cpu (
     );
 
     // Output assignments
-    assign pc_out = pc[7:0];          // Lower 8 bits of PC for debug
-    assign reg_out = instruction[7:0]; // Debug: show instruction byte 0
+    assign pc_out = pc;               // Full 16-bit PC for debug
+    assign reg_out = reg_data1;       // Debug: show rs1 register value
     assign addr_out = i2c_address;    // Current I2C address
     assign halt = (state == STATE_HALT);
     assign valid = (state == STATE_WRITEBACK);
