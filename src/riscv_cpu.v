@@ -39,7 +39,6 @@ module riscv_cpu (
     reg [15:0] instruction;           // 16-bit instructions for area efficiency
     reg [0:0] fetch_counter;          // Track which byte (0 or 1)
     reg [7:0] instruction_bytes [1:0]; // Buffer for 2 instruction bytes
-    reg [15:0] stack_pointer;         // 16-bit hardware stack pointer
     wire [15:0] alu_out;
     wire [15:0] reg_data1, reg_data2;
 
@@ -59,7 +58,6 @@ module riscv_cpu (
     wire [1:0] pc_sel;
     wire [1:0] reg_data_sel;
     wire branch_taken_alu;
-    wire stack_push, stack_pop, stack_addi;
     // wire jump_taken; // Removed unused signal
 
     // Enhanced 16-bit instruction decode for 12 registers with funct2
@@ -97,7 +95,6 @@ module riscv_cpu (
             i2c_address <= 16'h0000;
             i2c_write_data <= 8'h00;
             mem_data_out <= 16'h0000;
-            stack_pointer <= 16'hFFFF;  // Initialize stack pointer to top of memory
         end else begin
             state <= next_state;
 
@@ -137,15 +134,6 @@ module riscv_cpu (
                 STATE_WRITEBACK: begin
                     // Update PC
                     pc <= pc + 16'd1;  // Simple increment
-
-                    // Stack pointer management
-                    if (stack_push) begin
-                        stack_pointer <= stack_pointer - 16'd1;  // Decrement SP for PUSH
-                    end else if (stack_pop) begin
-                        stack_pointer <= stack_pointer + 16'd1;  // Increment SP for POP
-                    end else if (stack_addi) begin
-                        stack_pointer <= stack_pointer + imm_i;  // Add immediate to SP
-                    end
                 end
 
                 default: begin
@@ -256,10 +244,7 @@ module riscv_cpu (
         .mem_read_en(mem_read_en),
         .mem_write_en(mem_write_en),
         .pc_sel(pc_sel),
-        .reg_data_sel(reg_data_sel),
-        .stack_push(stack_push),
-        .stack_pop(stack_pop),
-        .stack_addi(stack_addi)
+        .reg_data_sel(reg_data_sel)
         // .jump_taken(jump_taken) // Removed unused signal
     );
 

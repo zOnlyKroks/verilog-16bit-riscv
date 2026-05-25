@@ -15,10 +15,7 @@ module control_unit (
     output reg        mem_read_en,  // Memory read enable
     output reg        mem_write_en, // Memory write enable
     output reg  [1:0] pc_sel,      // PC source select
-    output reg  [1:0] reg_data_sel, // Register write data select
-    output reg        stack_push,  // Stack push operation
-    output reg        stack_pop,   // Stack pop operation
-    output reg        stack_addi   // Stack pointer add immediate
+    output reg  [1:0] reg_data_sel // Register write data select
 );
 
     // Simplified 4-bit opcodes for 16 registers (no funct3)
@@ -27,7 +24,7 @@ module control_unit (
     localparam OP_MUL     = 4'b0010;  // MUL operation
     localparam OP_LOGIC   = 4'b0011;  // LOGIC operations: AND, OR, XOR, NOT (uses immediate field)
     localparam OP_DIV     = 4'b0100;  // DIV operations: DIV, DIVU, REM, REMU (uses immediate field)
-    localparam OP_STACK   = 4'b0101;  // Stack operations: PUSH, POP, ADDI_SP
+    localparam OP_RESERVED = 4'b0101; // Reserved for future use
     localparam OP_SLL     = 4'b0110;  // Shift left logical
     localparam OP_SRL     = 4'b0111;  // Shift right logical
     localparam OP_SRA     = 4'b1000;  // Shift right arithmetic
@@ -48,9 +45,6 @@ module control_unit (
         mem_write_en = 1'b0;
         pc_sel = 2'b00;        // Normal PC increment
         reg_data_sel = 2'b00;  // ALU result
-        stack_push = 1'b0;     // No stack push
-        stack_pop = 1'b0;      // No stack pop
-        stack_addi = 1'b0;     // No stack pointer modification
 
         case (opcode)
             OP_ADD: begin
@@ -85,36 +79,11 @@ module control_unit (
             OP_DIV: begin
                 reg_write_en = 1'b1;
                 reg_data_sel = 2'b00; // ALU result
-                case (funct2)
-                    2'b00: alu_op = 5'b01011;    // DIV
-                    2'b01: alu_op = 5'b01100;    // DIVU
-                    2'b10: alu_op = 5'b01101;    // REM
-                    2'b11: alu_op = 5'b01110;    // REMU
-                endcase
+                alu_op = 5'b01011;    // Simple DIV operation
             end
 
-            OP_STACK: begin
-                case (funct2)
-                    2'b00: begin  // PUSH
-                        stack_push = 1'b1;
-                        mem_write_en = 1'b1;
-                        alu_op = 5'b00001;    // SUB (decrement SP)
-                    end
-                    2'b01: begin  // POP
-                        stack_pop = 1'b1;
-                        reg_write_en = 1'b1;
-                        mem_read_en = 1'b1;
-                        reg_data_sel = 2'b01; // Memory data
-                        alu_op = 5'b00000;    // ADD (increment SP)
-                    end
-                    2'b10: begin  // ADDI_SP
-                        stack_addi = 1'b1;
-                        alu_op = 5'b00000;    // ADD immediate to SP
-                    end
-                    2'b11: begin  // Reserved
-                        // Reserved for future stack operations
-                    end
-                endcase
+            OP_RESERVED: begin
+                // Reserved - no operation
             end
 
             OP_SLL: begin
