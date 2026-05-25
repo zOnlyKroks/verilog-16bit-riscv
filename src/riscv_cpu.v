@@ -11,7 +11,9 @@ module riscv_cpu (
     input  wire        rst_n,
 
     // I2C interface to external EEPROM
-    inout  wire        sda,
+    input  wire        sda_in,
+    output wire        sda_out,
+    output wire        sda_oe,
     output wire        scl,
 
     // Debug interface (removed for area optimization)
@@ -37,6 +39,7 @@ module riscv_cpu (
     reg [15:0] instruction;           // 16-bit instructions for area efficiency
     reg [0:0] fetch_counter;          // Track which byte (0 or 1)
     reg [7:0] instruction_bytes [1:0]; // Buffer for 2 instruction bytes
+    reg [15:0] stack_pointer;         // 16-bit hardware stack pointer
     wire [15:0] alu_out;
     wire [15:0] reg_data1, reg_data2;
 
@@ -56,13 +59,15 @@ module riscv_cpu (
     wire [1:0] pc_sel;
     wire [1:0] reg_data_sel;
     wire branch_taken_alu;
+    wire stack_push, stack_pop, stack_addi;
     // wire jump_taken; // Removed unused signal
 
-    // Enhanced 16-bit instruction decode for 12 registers
+    // Enhanced 16-bit instruction decode for 12 registers with funct2
     wire [3:0] opcode = instruction[15:12];  // 4-bit opcode (16 operations)
     wire [3:0] rd     = instruction[11:8];   // 4 bits for 12 registers (0-11)
     wire [3:0] rs1    = instruction[7:4];    // 4 bits for 12 registers (0-11)
     wire [3:0] rs2    = instruction[3:0];    // 4 bits for 12 registers (0-11)
+    wire [1:0] funct2 = instruction[5:4];    // 2-bit function field for operation variants
 
     // Compact immediate generation for 16-bit instructions
     wire [5:0] imm_base = instruction[5:0];     // 6-bit immediate from rs2+funct3 fields
@@ -81,7 +86,7 @@ module riscv_cpu (
     reg [15:0] mem_data_out;
 
     // State machine with I2C memory interface
-    always_ff @(posedge clk or negedge rst_n) begin
+    always @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
             state <= STATE_FETCH;
             pc <= 16'h0000;
@@ -92,6 +97,7 @@ module riscv_cpu (
             i2c_address <= 16'h0000;
             i2c_write_data <= 8'h00;
             mem_data_out <= 16'h0000;
+            stack_pointer <= 16'hFFFF;  // Initialize stack pointer to top of memory
         end else begin
             state <= next_state;
 
@@ -131,6 +137,15 @@ module riscv_cpu (
                 STATE_WRITEBACK: begin
                     // Update PC
                     pc <= pc + 16'd1;  // Simple increment
+
+                    // Stack pointer management
+                    if (stack_push) begin
+                        stack_pointer <= stack_pointer - 16'd1;  // Decrement SP for PUSH
+                    end else if (stack_pop) begin
+                        stack_pointer <= stack_pointer + 16'd1;  // Increment SP for POP
+                    end else if (stack_addi) begin
+                        stack_pointer <= stack_pointer + imm_i;  // Add immediate to SP
+                    end
                 end
 
                 default: begin
@@ -142,7 +157,7 @@ module riscv_cpu (
     end
 
     // Functional next state logic
-    always_comb begin
+    always @(*) begin
         case (state)
             STATE_FETCH: begin
                 if (i2c_ready && !i2c_error)
@@ -185,7 +200,9 @@ module riscv_cpu (
         .read_data(i2c_read_data),
         .ready(i2c_ready),
         .error(i2c_error),
-        .sda(sda),
+        .sda_in(sda_in),
+        .sda_out(sda_out),
+        .sda_oe(sda_oe),
         .scl(scl)
     );
 
@@ -233,12 +250,16 @@ module riscv_cpu (
 
     control_unit ctrl (
         .opcode(opcode),
+        .funct2(funct2),
         .alu_op(alu_op),
         .reg_write_en(reg_write_en),
         .mem_read_en(mem_read_en),
         .mem_write_en(mem_write_en),
         .pc_sel(pc_sel),
-        .reg_data_sel(reg_data_sel)
+        .reg_data_sel(reg_data_sel),
+        .stack_push(stack_push),
+        .stack_pop(stack_pop),
+        .stack_addi(stack_addi)
         // .jump_taken(jump_taken) // Removed unused signal
     );
 

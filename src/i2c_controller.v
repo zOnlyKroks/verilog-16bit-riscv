@@ -24,7 +24,9 @@ module i2c_controller #(
     output reg         error,          // Error flag
 
     // I2C bus
-    inout  wire        sda,            // I2C data line
+    input  wire        sda_in,         // I2C data line input
+    output wire        sda_out,        // I2C data line output
+    output wire        sda_oe,         // I2C data line output enable
     output reg         scl             // I2C clock line
 );
 
@@ -45,13 +47,13 @@ module i2c_controller #(
     reg [7:0] shift_reg;
     reg [3:0] bit_count;
     reg [7:0] clock_div;
-    reg       sda_out, sda_oe;
+    reg       sda_out_reg, sda_oe_reg;
     reg       ack_received;
 
     // I2C clock generation (parameterized for different system clocks)
     wire i2c_clk = (clock_div == (CLK_DIV/2 - 1));
 
-    always_ff @(posedge clk or negedge rst_n) begin
+    always @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
             clock_div <= 8'd0;
         end else begin
@@ -63,16 +65,17 @@ module i2c_controller #(
     wire [7:0] addr_high = address[15:8];
     wire [7:0] addr_low = address[7:0];
 
-    // SDA tristate control
-    assign sda = sda_oe ? sda_out : 1'bz;
+    // SDA control outputs
+    assign sda_out = sda_out_reg;
+    assign sda_oe = sda_oe_reg;
 
     // State machine
-    always_ff @(posedge clk or negedge rst_n) begin
+    always @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
             state <= IDLE;
             scl <= 1'b1;
-            sda_out <= 1'b1;
-            sda_oe <= 1'b0;
+            sda_out_reg <= 1'b1;
+            sda_oe_reg <=1'b0;
             ready <= 1'b1;
             error <= 1'b0;
             bit_count <= 4'd0;
@@ -87,16 +90,16 @@ module i2c_controller #(
                     ready <= 1'b1;
                     error <= 1'b0;
                     scl <= 1'b1;
-                    sda_out <= 1'b1;
-                    sda_oe <= 1'b0;
+                    sda_out_reg <= 1'b1;
+                    sda_oe_reg <= 1'b0;
                     if (start) begin
                         ready <= 1'b0;
                     end
                 end
 
                 START_BIT: begin
-                    sda_oe <= 1'b1;
-                    sda_out <= 1'b0;  // START condition
+                    sda_oe_reg <= 1'b1;
+                    sda_out_reg <= 1'b0;  // START condition
                     scl <= 1'b1;
                     shift_reg <= {DEVICE_ADDR, 1'b0}; // Device addr + write
                     bit_count <= 4'd8;
@@ -105,7 +108,7 @@ module i2c_controller #(
                 DEV_ADDR: begin
                     scl <= ~scl;
                     if (!scl) begin  // Clock low, setup data
-                        sda_out <= shift_reg[7];
+                        sda_out_reg <= shift_reg[7];
                         shift_reg <= shift_reg << 1;
                         bit_count <= bit_count - 1;
                     end
@@ -114,17 +117,17 @@ module i2c_controller #(
                 ACK_CHECK: begin
                     scl <= ~scl;
                     if (!scl) begin
-                        sda_oe <= 1'b0;  // Release SDA for ACK
+                        sda_oe_reg <= 1'b0;  // Release SDA for ACK
                     end else begin
-                        ack_received <= !sda;  // Sample ACK
-                        sda_oe <= 1'b1;
+                        ack_received <= !sda_in;  // Sample ACK
+                        sda_oe_reg <= 1'b1;
                     end
                 end
 
                 ADDR_HIGH: begin
                     scl <= ~scl;
                     if (!scl) begin
-                        sda_out <= shift_reg[7];
+                        sda_out_reg <= shift_reg[7];
                         shift_reg <= shift_reg << 1;
                         bit_count <= bit_count - 1;
                     end
@@ -133,7 +136,7 @@ module i2c_controller #(
                 ADDR_LOW: begin
                     scl <= ~scl;
                     if (!scl) begin
-                        sda_out <= shift_reg[7];
+                        sda_out_reg <= shift_reg[7];
                         shift_reg <= shift_reg << 1;
                         bit_count <= bit_count - 1;
                     end
@@ -142,16 +145,16 @@ module i2c_controller #(
                 WRITE_DATA: begin
                     scl <= ~scl;
                     if (!scl) begin
-                        sda_out <= shift_reg[7];
+                        sda_out_reg <= shift_reg[7];
                         shift_reg <= shift_reg << 1;
                         bit_count <= bit_count - 1;
                     end
                 end
 
                 RESTART: begin
-                    sda_out <= 1'b1;
+                    sda_out_reg <= 1'b1;
                     scl <= 1'b1;
-                    sda_out <= 1'b0;  // Restart condition
+                    sda_out_reg <= 1'b0;  // Restart condition
                     shift_reg <= {DEVICE_ADDR, 1'b1}; // Device addr + read
                     bit_count <= 4'd8;
                 end
@@ -159,7 +162,7 @@ module i2c_controller #(
                 READ_ADDR: begin
                     scl <= ~scl;
                     if (!scl) begin
-                        sda_out <= shift_reg[7];
+                        sda_out_reg <= shift_reg[7];
                         shift_reg <= shift_reg << 1;
                         bit_count <= bit_count - 1;
                     end
@@ -168,17 +171,17 @@ module i2c_controller #(
                 READ_DATA: begin
                     scl <= ~scl;
                     if (!scl) begin
-                        sda_oe <= 1'b0;  // Release for read
+                        sda_oe_reg <= 1'b0;  // Release for read
                     end else begin
-                        shift_reg <= {shift_reg[6:0], sda};
+                        shift_reg <= {shift_reg[6:0], sda_in};
                         bit_count <= bit_count - 1;
                     end
                 end
 
                 STOP_BIT: begin
                     scl <= 1'b1;
-                    sda_oe <= 1'b1;
-                    sda_out <= 1'b1;  // STOP condition
+                    sda_oe_reg <= 1'b1;
+                    sda_out_reg <= 1'b1;  // STOP condition
                     read_data <= shift_reg;
                 end
 
@@ -187,7 +190,7 @@ module i2c_controller #(
     end
 
     // Next state logic
-    always_comb begin
+    always @(*) begin
         next_state = state;
 
         case (state)

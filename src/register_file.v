@@ -24,7 +24,7 @@ module register_file (
 
     // Initialize registers
     integer i;
-    always_ff @(posedge clk or negedge rst_n) begin
+    always @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
             for (i = 0; i < 12; i = i + 1) begin
                 registers[i] <= 16'h0000;

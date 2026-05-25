@@ -29,7 +29,11 @@ module alu (
     localparam ALU_SRL  = 5'b01000;  // Shift right logical
     localparam ALU_SRA  = 5'b01001;  // Shift right arithmetic
     localparam ALU_MUL  = 5'b01010;  // Multiplication
-    // localparam ALU_MULH = 5'b01011;  // Removed for area optimization
+    localparam ALU_DIV  = 5'b01011;  // Division
+    localparam ALU_DIVU = 5'b01100;  // Division unsigned
+    localparam ALU_REM  = 5'b01101;  // Remainder
+    localparam ALU_REMU = 5'b01110;  // Remainder unsigned
+    localparam ALU_NOT  = 5'b01111;  // Bitwise NOT
     localparam ALU_BEQ  = 5'b10000;  // Branch equal
     localparam ALU_BNE  = 5'b10001;  // Branch not equal
     localparam ALU_BLT  = 5'b10010;  // Branch less than
@@ -81,6 +85,7 @@ module alu (
             ALU_AND:  result = a & b;
             ALU_OR:   result = a | b;
             ALU_XOR:  result = a ^ b;
+            ALU_NOT:  result = ~a;  // Bitwise NOT (ignores operand b)
 
             // Comparison operations (shared comparison logic)
             ALU_SLT:  result = less_than_signed ? 16'h0001 : 16'h0000;
@@ -92,6 +97,39 @@ module alu (
             // Simplified multiplication (reduce timing pressure)
             ALU_MUL: begin
                 result = a[7:0] * b[7:0];  // 8x8→16 multiplication for better timing
+            end
+
+            // Division operations (handle divide by zero)
+            ALU_DIV: begin
+                if (b_signed == 16'h0000) begin
+                    result = 16'hFFFF;  // Division by zero returns -1
+                end else begin
+                    result = a_signed / b_signed;  // Signed division
+                end
+            end
+
+            ALU_DIVU: begin
+                if (b == 16'h0000) begin
+                    result = 16'hFFFF;  // Division by zero returns max value
+                end else begin
+                    result = a / b;  // Unsigned division
+                end
+            end
+
+            ALU_REM: begin
+                if (b_signed == 16'h0000) begin
+                    result = a_signed;  // Remainder with zero divisor returns dividend
+                end else begin
+                    result = a_signed % b_signed;  // Signed remainder
+                end
+            end
+
+            ALU_REMU: begin
+                if (b == 16'h0000) begin
+                    result = a;  // Remainder with zero divisor returns dividend
+                end else begin
+                    result = a % b;  // Unsigned remainder
+                end
             end
 
             // Branch operations (shared comparison logic)
