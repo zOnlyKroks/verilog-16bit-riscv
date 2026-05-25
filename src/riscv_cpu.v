@@ -87,7 +87,7 @@ module riscv_cpu (
     // State machine with I2C memory interface
     always_ff @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
-            state <= STATE_FETCH_START;
+            state <= STATE_FETCH;
             pc <= 16'h0000;
             instruction <= 32'h0;
             fetch_counter <= 2'b00;
@@ -100,51 +100,38 @@ module riscv_cpu (
             state <= next_state;
 
             case (state)
-                STATE_FETCH_START: begin
-                    // Start fetching instruction byte
-                    fetch_counter <= 2'b00;
-                    i2c_address <= instruction_addr;
-                    i2c_read_write <= 1'b1;  // Read
-                    i2c_start <= 1'b1;
-                end
-
-                STATE_FETCH_WAIT: begin
-                    i2c_start <= 1'b0;
-                    if (i2c_ready && !i2c_error) begin
-                        instruction_bytes[fetch_counter] <= i2c_read_data;
-                        fetch_counter <= fetch_counter + 1;
-                    end
-                end
-
-                STATE_FETCH_0, STATE_FETCH_1, STATE_FETCH_2: begin
-                    // Continue fetching remaining bytes
-                    if (state == next_state) begin
+                STATE_FETCH: begin
+                    // Simplified fetch - handle all I2C instruction fetch logic
+                    if (fetch_counter == 2'b00) begin
                         i2c_address <= instruction_addr;
+                        i2c_read_write <= 1'b1;  // Read
                         i2c_start <= 1'b1;
+                    end else begin
+                        i2c_start <= 1'b0;
+                        if (i2c_ready && !i2c_error) begin
+                            instruction_bytes[fetch_counter] <= i2c_read_data;
+                            fetch_counter <= fetch_counter + 1;
+                            if (fetch_counter == 2'b11) begin
+                                // Assemble complete instruction
+                                instruction <= {i2c_read_data, instruction_bytes[2],
+                                              instruction_bytes[1], instruction_bytes[0]};
+                            end
+                        end
                     end
                 end
 
-                STATE_FETCH_3: begin
-                    if (i2c_ready && !i2c_error) begin
-                        instruction_bytes[3] <= i2c_read_data;
-                        // Assemble complete instruction
-                        instruction <= {instruction_bytes[3], instruction_bytes[2],
-                                      instruction_bytes[1], instruction_bytes[0]};
-                    end
-                end
-
-                STATE_MEM_START: begin
-                    // Start memory operation for load/store
-                    i2c_address <= data_addr;
-                    i2c_read_write <= ~mem_write_en;  // 0=write, 1=read
-                    i2c_write_data <= reg_data2[7:0];  // Use lower 8 bits for I2C
-                    i2c_start <= 1'b1;
-                end
-
-                STATE_MEM_WAIT: begin
-                    i2c_start <= 1'b0;
-                    if (i2c_ready && !i2c_error && mem_read_en) begin
-                        mem_data_out <= {8'h00, i2c_read_data}; // Zero-extend 8-bit to 16-bit
+                STATE_MEMORY: begin
+                    // Simplified memory access - handle load/store I2C operations
+                    if (!i2c_start) begin
+                        i2c_address <= data_addr;
+                        i2c_read_write <= ~mem_write_en;  // 0=write, 1=read
+                        i2c_write_data <= reg_data2[7:0];  // Use lower 8 bits for I2C
+                        i2c_start <= 1'b1;
+                    end else begin
+                        i2c_start <= 1'b0;
+                        if (i2c_ready && !i2c_error && mem_read_en) begin
+                            mem_data_out <= {8'h00, i2c_read_data}; // Zero-extend 8-bit to 16-bit
+                        end
                     end
                 end
 
@@ -161,56 +148,44 @@ module riscv_cpu (
         end
     end
 
-    // Next state logic for I2C memory operations
+    // Next state logic for simplified I2C memory operations
     always_comb begin
         case (state)
-            STATE_FETCH_START: next_state = STATE_FETCH_WAIT;
-
-            STATE_FETCH_WAIT: begin
-                if (i2c_ready && !i2c_error) begin
-                    case (fetch_counter)
-                        2'b00: next_state = STATE_FETCH_0;
-                        2'b01: next_state = STATE_FETCH_1;
-                        2'b10: next_state = STATE_FETCH_2;
-                        2'b11: next_state = STATE_DECODE;
-                    endcase
-                end else begin
-                    next_state = STATE_FETCH_WAIT;
-                end
-            end
-
-            STATE_FETCH_0, STATE_FETCH_1, STATE_FETCH_2: begin
-                next_state = STATE_FETCH_WAIT;
+            STATE_FETCH: begin
+                // Stay in fetch until all 4 instruction bytes are loaded
+                if (fetch_counter == 2'b11 && i2c_ready && !i2c_error)
+                    next_state = STATE_DECODE;
+                else
+                    next_state = STATE_FETCH;
             end
 
             STATE_DECODE: begin
                 // Check if instruction needs memory access
                 if ((opcode == 7'b0000011) || (opcode == 7'b0100011)) // Load/Store
-                    next_state = STATE_MEM_START;
+                    next_state = STATE_MEMORY;
                 else
                     next_state = STATE_EXECUTE;
             end
 
-            STATE_MEM_START: next_state = STATE_MEM_WAIT;
-
-            STATE_MEM_WAIT: begin
+            STATE_MEMORY: begin
+                // Wait for I2C memory operation to complete
                 if (i2c_ready && !i2c_error)
                     next_state = STATE_EXECUTE;
                 else
-                    next_state = STATE_MEM_WAIT;
+                    next_state = STATE_MEMORY;
             end
 
             STATE_EXECUTE: next_state = STATE_WRITEBACK;
 
             STATE_WRITEBACK: begin
-                if (instruction == 32'h00000000)
+                if (instruction == 32'h00000000)  // NOP instruction = halt
                     next_state = STATE_HALT;
                 else
-                    next_state = STATE_FETCH_START;
+                    next_state = STATE_FETCH;
             end
 
             STATE_HALT: next_state = STATE_HALT;
-            default: next_state = STATE_FETCH_START;
+            default: next_state = STATE_FETCH;
         endcase
     end
 
