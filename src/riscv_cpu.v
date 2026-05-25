@@ -78,8 +78,8 @@ module riscv_cpu (
     // Immediate generation (16-bit)
     wire [15:0] imm_i = {{4{instruction[31]}}, instruction[31:20]};  // I-type immediate (sign-extended)
     wire [15:0] imm_s = {{4{instruction[31]}}, instruction[31:25], instruction[11:7]};  // S-type immediate
-    wire [15:0] imm_b = {{4{instruction[31]}}, instruction[7], instruction[30:25], instruction[11:8], 1'b0};  // B-type immediate
-    wire [15:0] imm_j = {{4{instruction[31]}}, instruction[19:12], instruction[20], instruction[30:21], 1'b0}; // J-type immediate
+    wire [15:0] imm_b = {{3{instruction[31]}}, instruction[7], instruction[30:25], instruction[11:8], 1'b0};  // B-type immediate (13 bits + 3 sign bits = 16)
+    wire [15:0] imm_j = {{3{instruction[31]}}, instruction[19:12], instruction[20], instruction[30:25], 1'b0}; // J-type immediate (13 bits + 3 sign bits = 16)
 
     // Memory mapping for 64KB EEPROM
     // 0x0000-0x7FFF: Instruction memory (32KB)
@@ -143,24 +143,24 @@ module riscv_cpu (
                     // Start memory operation for load/store
                     i2c_address <= data_addr;
                     i2c_read_write <= ~mem_write_en;  // 0=write, 1=read
-                    i2c_write_data <= reg_data2;
+                    i2c_write_data <= reg_data2[7:0];  // Use lower 8 bits for I2C
                     i2c_start <= 1'b1;
                 end
 
                 STATE_MEM_WAIT: begin
                     i2c_start <= 1'b0;
                     if (i2c_ready && !i2c_error && mem_read_en) begin
-                        mem_data_out <= i2c_read_data;
+                        mem_data_out <= {8'h00, i2c_read_data}; // Zero-extend 8-bit to 16-bit
                     end
                 end
 
                 STATE_WRITEBACK: begin
                     if (pc_sel == 2'b01 && branch_taken_alu) // Branch taken
-                        pc <= pc + {{8{imm_b[7]}}, imm_b};
+                        pc <= pc + imm_b;
                     else if (pc_sel == 2'b10) // Jump
-                        pc <= pc + {{8{imm_j[7]}}, imm_j};
+                        pc <= pc + imm_j;
                     else // Normal increment
-                        pc <= pc + 1;
+                        pc <= pc + 16'd1;
                 end
 
             endcase

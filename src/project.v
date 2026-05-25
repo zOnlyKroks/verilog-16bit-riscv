@@ -29,15 +29,20 @@ module tt_um_zonlykroks_8bit_riscv (
 
     // I2C signals
     wire scl_out;
+    wire sda_wire;  // Internal SDA wire
 
     // CPU reset (active low, synchronized)
     wire cpu_rst_n = rst_n & ena;
+
+    // SDA bidirectional buffer
+    assign sda_wire = uio_in[1];            // SDA input
+    assign uio_out[1] = 1'b0;               // SDA output (driven by I2C controller)
 
     // 16-bit RISC-V CPU with external EEPROM interface
     riscv_cpu cpu (
         .clk(clk),
         .rst_n(cpu_rst_n),
-        .sda(uio_in[1]),                    // SDA input/output handled by I2C controller
+        .sda(sda_wire),                     // Connect to internal SDA wire
         .scl(scl_out),
         .debug_en(debug_en),
         .pc_out(pc),
@@ -53,7 +58,6 @@ module tt_um_zonlykroks_8bit_riscv (
 
     // I2C pin assignments
     assign uio_out[0] = scl_out;            // I2C Clock (SCL)
-    assign uio_out[1] = 1'b0;               // SDA output (controlled by I2C module)
 
     // Debug outputs
     assign uio_out[3:2] = addr_out[15:14];  // Address high bits
