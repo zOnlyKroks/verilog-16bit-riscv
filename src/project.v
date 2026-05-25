@@ -20,9 +20,8 @@ module tt_um_zonlykroks_8bit_riscv (
     // Input signal assignments
     wire debug_en = ui_in[0];
 
-    // Internal CPU signals
+    // Essential CPU signals only
     wire [15:0] pc;
-    wire [15:0] reg_out;
     wire [15:0] addr_out;
     wire cpu_halt;
     wire output_valid;
@@ -42,11 +41,10 @@ module tt_um_zonlykroks_8bit_riscv (
     riscv_cpu cpu (
         .clk(clk),
         .rst_n(cpu_rst_n),
-        .sda(sda_wire),                     // Connect to internal SDA wire
+        .sda(sda_wire),
         .scl(scl_out),
         .debug_en(debug_en),
         .pc_out(pc),
-        .reg_out(reg_out),
         .addr_out(addr_out),
         .halt(cpu_halt),
         .valid(output_valid)

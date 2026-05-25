@@ -60,10 +60,9 @@ module i2c_controller #(
         end
     end
 
-    // Address handling for different EEPROM sizes
-    wire [7:0] addr_high = (ADDR_BITS > 8) ? address[15:8] : 8'h00;
+    // Simplified address handling (fixed 16-bit for our use case)
+    wire [7:0] addr_high = address[15:8];
     wire [7:0] addr_low = address[7:0];
-    wire need_addr_high = (ADDR_BITS > 8);
 
     // SDA tristate control
     assign sda = sda_oe ? sda_out : 1'bz;

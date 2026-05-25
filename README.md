@@ -30,14 +30,15 @@ Full-featured RISC-V processor implementation with external EEPROM memory optimi
 - `SRL rd, rs1, rs2` - Shift right logical
 - `SRA rd, rs1, rs2` - Shift right arithmetic
 
-**Multiplication Operations (M Extension)**:
-- `MUL rd, rs1, rs2` - Multiply (low 16 bits) - **Hardware accelerated**
-- `MULH rd, rs1, rs2` - Multiply high (signed × signed) - **Hardware accelerated**  
-- `MULHU rd, rs1, rs2` - Multiply high (unsigned × unsigned) - **Hardware accelerated**
+**Shared-Circuit Multiplication (Innovative M Extension)**:
+- `MUL rd, rs1, rs2` - Multiply using **shared ALU + barrel shifter circuits**
+- `MULH rd, rs1, rs2` - Multiply high using **shared ALU + barrel shifter circuits**
+- **16-cycle execution**: Much faster than software, much smaller than parallel multiplier
+- **Resource sharing**: Reuses existing ALU adder and barrel shifter hardware
 
 **Division**: Software implementation using shift operations
-- Division implemented efficiently in software using barrel shifters
-- Hardware multiplication + software division = optimal area/performance balance
+- Division implemented efficiently in software using single-cycle barrel shifter
+- **Shared circuits + software algorithms** = optimal area/performance balance
 
 **Immediate Operations**:
 - `ADDI rd, rs1, imm` - Add immediate

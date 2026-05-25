@@ -19,27 +19,20 @@ module riscv_cpu (
 
     // Outputs
     output wire [15:0] pc_out,
-    output wire [15:0] reg_out,
     output wire [15:0] addr_out,      // 16-bit addressing for 64KB
     output wire        halt,
     output wire        valid
 );
 
-    // CPU state machine states for I2C memory access
-    localparam STATE_FETCH_START = 4'b0000;  // Start instruction fetch
-    localparam STATE_FETCH_WAIT  = 4'b0001;  // Wait for I2C completion
-    localparam STATE_FETCH_0     = 4'b0010;  // Fetch byte 0
-    localparam STATE_FETCH_1     = 4'b0011;  // Fetch byte 1
-    localparam STATE_FETCH_2     = 4'b0100;  // Fetch byte 2
-    localparam STATE_FETCH_3     = 4'b0101;  // Fetch byte 3
-    localparam STATE_DECODE      = 4'b0110;  // Decode instruction
-    localparam STATE_MEM_START   = 4'b0111;  // Start memory operation
-    localparam STATE_MEM_WAIT    = 4'b1000;  // Wait for memory I2C
-    localparam STATE_EXECUTE     = 4'b1001;  // Execute instruction
-    localparam STATE_WRITEBACK   = 4'b1010;  // Write back results
-    localparam STATE_HALT        = 4'b1111;  // Halt state
+    // Optimized CPU state machine (fewer states)
+    localparam STATE_FETCH       = 3'b000;  // Fetch instruction (combines fetch states)
+    localparam STATE_DECODE      = 3'b001;  // Decode instruction
+    localparam STATE_MEMORY      = 3'b010;  // Memory operation (combines mem states)
+    localparam STATE_EXECUTE     = 3'b011;  // Execute instruction
+    localparam STATE_WRITEBACK   = 3'b100;  // Write back results
+    localparam STATE_HALT        = 3'b111;  // Halt state
 
-    reg [3:0] state, next_state;
+    reg [2:0] state, next_state;  // Reduced from 4-bit to 3-bit
 
     // Internal registers and wires
     reg [15:0] pc;                    // 16-bit PC for 64KB addressing
@@ -67,19 +60,20 @@ module riscv_cpu (
     wire branch_taken_alu;
     wire jump_taken;
 
-    // Instruction decode
+    // Optimized instruction decode (only extract needed bits)
     wire [6:0] opcode = instruction[6:0];
-    wire [4:0] rd     = instruction[11:7];
+    wire [2:0] rd     = instruction[9:7];    // Only 3 bits for 6 registers
     wire [2:0] funct3 = instruction[14:12];
-    wire [4:0] rs1    = instruction[19:15];
-    wire [4:0] rs2    = instruction[24:20];
+    wire [2:0] rs1    = instruction[17:15];  // Only 3 bits for 6 registers
+    wire [2:0] rs2    = instruction[22:20];  // Only 3 bits for 6 registers
     wire [6:0] funct7 = instruction[31:25];
 
-    // Immediate generation (16-bit)
-    wire [15:0] imm_i = {{4{instruction[31]}}, instruction[31:20]};  // I-type immediate (sign-extended)
-    wire [15:0] imm_s = {{4{instruction[31]}}, instruction[31:25], instruction[11:7]};  // S-type immediate
-    wire [15:0] imm_b = {{3{instruction[31]}}, instruction[7], instruction[30:25], instruction[11:8], 1'b0};  // B-type immediate (13 bits + 3 sign bits = 16)
-    wire [15:0] imm_j = {{3{instruction[31]}}, instruction[19:12], instruction[20], instruction[30:25], 1'b0}; // J-type immediate (13 bits + 3 sign bits = 16)
+    // Optimized shared immediate generation
+    wire [11:0] imm_base = instruction[31:20];  // Base immediate bits
+    wire [15:0] imm_i = {{4{instruction[31]}}, imm_base};
+    wire [15:0] imm_s = {{4{instruction[31]}}, instruction[31:25], instruction[11:7]};
+    wire [15:0] imm_b = {{4{instruction[31]}}, instruction[7], instruction[30:25], instruction[11:8], 1'b0};
+    wire [15:0] imm_j = {{4{instruction[31]}}, imm_base}; // Reuse base for J-type
 
     // Memory mapping for 64KB EEPROM
     // 0x0000-0x7FFF: Instruction memory (32KB)
@@ -242,9 +236,9 @@ module riscv_cpu (
     register_file regfile (
         .clk(clk),
         .rst_n(rst_n),
-        .read_addr1(rs1[2:0]), // Source register 1 for ALU (3-bit for 6 regs)
-        .read_addr2(rs2[2:0]), // Source register 2 for ALU (3-bit for 6 regs)
-        .write_addr(rd[2:0]),  // Destination register (3-bit for 6 regs)
+        .read_addr1(rs1),      // Source register 1 (already 3-bit)
+        .read_addr2(rs2),      // Source register 2 (already 3-bit)
+        .write_addr(rd),       // Destination register (already 3-bit)
         .write_data(reg_data_sel == 2'b00 ? alu_out :
                    reg_data_sel == 2'b01 ? mem_data_out :
                    reg_data_sel == 2'b10 ? pc + 16'd1 :
@@ -268,12 +262,17 @@ module riscv_cpu (
     // rs1 data is now available directly from register file
     wire [15:0] rs1_data = reg_data1;
 
+    wire mul_busy;
+
     alu alu_inst (
+        .clk(clk),
+        .rst_n(rst_n),
         .a(rs1_data),  // Use correct source register value
         .b(alu_b),
         .alu_op(alu_op),
         .result(alu_out),
-        .zero_flag(branch_taken_alu)
+        .zero_flag(branch_taken_alu),
+        .mul_busy(mul_busy)
     );
 
     control_unit ctrl (
@@ -291,7 +290,6 @@ module riscv_cpu (
 
     // Output assignments
     assign pc_out = pc;               // Full 16-bit PC for debug
-    assign reg_out = reg_data1;       // Debug: show rs1 register value
     assign addr_out = i2c_address;    // Current I2C address
     assign halt = (state == STATE_HALT);
     assign valid = (state == STATE_WRITEBACK);
