@@ -42,6 +42,21 @@ module alu (
     wire signed [15:0] b_signed = b;
     wire [3:0] shift_amount = b[3:0];  // Use lower 4 bits for shift amount
 
+    // Shared barrel shifter logic
+    wire shift_left = (alu_op == ALU_SLL);
+    wire shift_arith = (alu_op == ALU_SRA);
+    wire [15:0] shift_input = shift_left ? a : a;  // Input to shifter
+
+    // Single barrel shifter with direction and type control
+    wire [15:0] shift_result;
+    barrel_shifter shared_shifter (
+        .data_in(a),
+        .shift_amount(shift_amount),
+        .shift_left(shift_left),
+        .shift_arith(shift_arith),
+        .data_out(shift_result)
+    );
+
     // Multiplication logic (hardware accelerated)
     wire [31:0] mul_full = a * b;                          // Full multiplication result
     wire [15:0] mul_result = mul_full[15:0];               // Multiplication low
@@ -63,10 +78,8 @@ module alu (
             ALU_SLT:  result = (a_signed < b_signed) ? 16'h0001 : 16'h0000;
             ALU_SLTU: result = (a < b) ? 16'h0001 : 16'h0000;
 
-            // Shift operations
-            ALU_SLL:  result = a << shift_amount;
-            ALU_SRL:  result = a >> shift_amount;
-            ALU_SRA:  result = $signed(a) >>> shift_amount;
+            // Shift operations (shared barrel shifter)
+            ALU_SLL, ALU_SRL, ALU_SRA: result = shift_result;
 
             // Multiplication operations (hardware accelerated)
             ALU_MUL:  result = mul_result;

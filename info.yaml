@@ -21,6 +21,7 @@ project:
     - "riscv_cpu.v"
     - "i2c_controller.v"
     - "alu.v"
+    - "barrel_shifter.v"
     - "register_file.v"
     - "control_unit.v"
 

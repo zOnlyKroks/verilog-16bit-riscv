@@ -281,7 +281,7 @@ Instructions referencing x4-x31 will use x0 (reads) or be ignored (writes).
 ✅ **All branch operations**: Including unsigned comparisons  
 ✅ **Hardware multiply**: Single-cycle 16×16→32-bit multiplication (MUL, MULH, MULHU)  
 ✅ **Software divide**: Efficient division using barrel shifter algorithms  
-✅ **Barrel shifters**: All shift operations (SLL, SRL, SRA) - 0-15 bit single-cycle  
+✅ **Shared barrel shifter**: All shift operations (SLL, SRL, SRA) with single hardware unit - significant area savings  
 ✅ **External 64KB memory**: Via I2C EEPROM interface
 
 ## File Structure
