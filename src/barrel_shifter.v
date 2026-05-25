@@ -18,16 +18,12 @@ module barrel_shifter (
     // Optimized single-stage shift implementation
     wire fill_bit = shift_arith & data_in[15];  // Optimized fill bit logic
 
-    // Single combinational shift logic
+    // Simplified combinational shift logic (no arithmetic shift)
     always @(*) begin
         if (shift_left) begin
             data_out = data_in << shift_amount;
         end else begin
-            if (shift_arith) begin
-                data_out = $signed(data_in) >>> shift_amount;
-            end else begin
-                data_out = data_in >> shift_amount;
-            end
+            data_out = data_in >> shift_amount;  // Only logical right shift
         end
     end
 

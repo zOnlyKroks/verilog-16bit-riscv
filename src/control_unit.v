@@ -66,23 +66,17 @@ module control_unit (
                 reg_data_sel = 2'b00; // ALU result
                 case (funct3)
                     3'b000: begin
-                        if (funct7 == 7'b0000001) alu_op = 5'b01010;      // MUL (shared circuit)
+                        if (funct7 == 7'b0000001) alu_op = 5'b01010;      // MUL (simplified)
                         else if (funct7[5])       alu_op = 5'b00001;      // SUB
                         else                      alu_op = 5'b00000;      // ADD
                     end
-                    3'b001: begin
-                        if (funct7 == 7'b0000001) alu_op = 5'b01011;      // MULH (shared circuit)
-                        else                       alu_op = 5'b00111;      // SLL
-                    end
+                    3'b001: alu_op = 5'b00111;      // SLL only (removed MULH for area)
                     3'b010: alu_op = 5'b00101;      // SLT
                     3'b011: alu_op = 5'b00110;      // SLTU
-                    3'b100: alu_op = 5'b00100;      // XOR (division removed)
-                    3'b101: begin
-                        if (funct7[5])       alu_op = 5'b01001;      // SRA
-                        else                 alu_op = 5'b01000;      // SRL
-                    end
-                    3'b110: alu_op = 5'b00011;      // OR (division removed)
-                    3'b111: alu_op = 5'b00010;      // AND (division removed)
+                    3'b100: alu_op = 5'b00100;      // XOR
+                    3'b101: alu_op = 5'b01000;      // SRL only (removed SRA for area)
+                    3'b110: alu_op = 5'b00011;      // OR
+                    3'b111: alu_op = 5'b00010;      // AND
                     default: alu_op = 5'b00000;
                 endcase
             end

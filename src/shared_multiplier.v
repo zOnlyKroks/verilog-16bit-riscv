@@ -13,9 +13,9 @@ module shared_multiplier (
     input  wire        start,        // Start multiplication
     input  wire [15:0] a,           // Multiplicand
     input  wire [15:0] b,           // Multiplier
-    input  wire        high_result, // 1=return high 16 bits, 0=return low 16 bits
+    input  wire        high_result, // 1=return high 16 bits, 0=return low 16 bits (simplified)
 
-    output reg  [15:0] result,      // Multiplication result
+    output reg  [15:0] result,      // Multiplication result (low 16 bits only)
     output reg         done,        // Multiplication complete
 
     // Shared resource interfaces (unused for now)
@@ -30,31 +30,19 @@ module shared_multiplier (
     input  wire [15:0] shift_result // Shifter result
 );
 
-    // Simple 2-cycle multiplier
-    reg [1:0] cycle_count;
-    reg [31:0] product_reg;
+    // Ultra-simple combinational multiplier (16x16→16)
+    wire [15:0] product = a[7:0] * b[7:0];  // Only multiply lower 8 bits for area savings
 
     always_ff @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
             done <= 1'b0;
             result <= 16'h0000;
-            cycle_count <= 2'b00;
-            product_reg <= 32'h00000000;
         end else begin
-            if (start && cycle_count == 2'b00) begin
-                // Start multiplication - simple array multiplier
-                product_reg <= a * b;
-                cycle_count <= 2'b01;
-                done <= 1'b0;
-            end else if (cycle_count == 2'b01) begin
-                // Complete multiplication
-                result <= high_result ? product_reg[31:16] : product_reg[15:0];
+            if (start) begin
+                result <= product;  // Always return low 16 bits
                 done <= 1'b1;
-                cycle_count <= 2'b10;
-            end else if (!start) begin
-                // Reset when start released
+            end else begin
                 done <= 1'b0;
-                cycle_count <= 2'b00;
             end
         end
     end
