@@ -48,12 +48,15 @@ module control_unit (
                 case (funct3)
                     3'b000: alu_op = 5'b00000; // ADDI
                     3'b010: alu_op = 5'b00101; // SLTI
-                    // SLTIU removed for area optimization
+                    3'b011: alu_op = 5'b00110; // SLTIU
                     3'b100: alu_op = 5'b00100; // XORI
                     3'b110: alu_op = 5'b00011; // ORI
                     3'b111: alu_op = 5'b00010; // ANDI
                     3'b001: alu_op = 5'b00111; // SLLI
-                    // Shift right operations removed for area optimization
+                    3'b101: begin
+                        if (funct7[5]) alu_op = 5'b01001; // SRAI
+                        else           alu_op = 5'b01000; // SRLI
+                    end
                     default: alu_op = 5'b00000;
                 endcase
             end
@@ -63,16 +66,39 @@ module control_unit (
                 reg_data_sel = 2'b00; // ALU result
                 case (funct3)
                     3'b000: begin
-                        if (funct7[5]) alu_op = 5'b00001; // SUB
-                        else           alu_op = 5'b00000; // ADD
+                        if (funct7 == 7'b0000001) alu_op = 5'b01010;      // MUL (M extension)
+                        else if (funct7[5])       alu_op = 5'b00001;      // SUB
+                        else                      alu_op = 5'b00000;      // ADD
                     end
-                    3'b001: alu_op = 5'b00111; // SLL
-                    3'b010: alu_op = 5'b00101; // SLT
-                    // SLTU removed for area optimization
-                    3'b100: alu_op = 5'b00100; // XOR
-                    // Shift right operations removed for area optimization
-                    3'b110: alu_op = 5'b00011; // OR
-                    3'b111: alu_op = 5'b00010; // AND
+                    3'b001: begin
+                        if (funct7 == 7'b0000001) alu_op = 5'b01011;      // MULH (M extension)
+                        else                       alu_op = 5'b00111;      // SLL
+                    end
+                    3'b010: begin
+                        if (funct7 == 7'b0000001) alu_op = 5'b01011;      // MULHSU (reuse MULH for simplicity)
+                        else                       alu_op = 5'b00101;      // SLT
+                    end
+                    3'b011: begin
+                        if (funct7 == 7'b0000001) alu_op = 5'b01100;      // MULHU
+                        else                       alu_op = 5'b00110;      // SLTU
+                    end
+                    3'b100: begin
+                        if (funct7 == 7'b0000001) alu_op = 5'b01101;      // DIV
+                        else                       alu_op = 5'b00100;      // XOR
+                    end
+                    3'b101: begin
+                        if (funct7 == 7'b0000001) alu_op = 5'b01110;      // DIVU
+                        else if (funct7[5])       alu_op = 5'b01001;      // SRA
+                        else                      alu_op = 5'b01000;      // SRL
+                    end
+                    3'b110: begin
+                        if (funct7 == 7'b0000001) alu_op = 5'b01111;      // REM
+                        else                       alu_op = 5'b00011;      // OR
+                    end
+                    3'b111: begin
+                        if (funct7 == 7'b0000001) alu_op = 5'b10000;      // REMU
+                        else                       alu_op = 5'b00010;      // AND
+                    end
                     default: alu_op = 5'b00000;
                 endcase
             end
@@ -92,12 +118,13 @@ module control_unit (
             OP_BRANCH: begin
                 pc_sel = 2'b01; // Will use branch_taken signal from ALU
                 case (funct3)
-                    3'b000: alu_op = 5'b10000; // BEQ
-                    3'b001: alu_op = 5'b10001; // BNE
-                    3'b100: alu_op = 5'b10010; // BLT
-                    3'b101: alu_op = 5'b10011; // BGE
-                    // Unsigned branch operations removed for area optimization
-                    default: alu_op = 5'b10000;
+                    3'b000: alu_op = 5'b11000; // BEQ
+                    3'b001: alu_op = 5'b11001; // BNE
+                    3'b100: alu_op = 5'b11010; // BLT
+                    3'b101: alu_op = 5'b11011; // BGE
+                    3'b110: alu_op = 5'b11100; // BLTU
+                    3'b111: alu_op = 5'b11101; // BGEU
+                    default: alu_op = 5'b11000;
                 endcase
             end
 

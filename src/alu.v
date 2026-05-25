@@ -14,47 +14,88 @@ module alu (
     output wire       zero_flag // Zero flag for branches
 );
 
-    // ALU operation codes - expanded to 5 bits with division
+    // ALU operation codes - expanded to 5 bits with full instruction set
     localparam ALU_ADD  = 5'b00000;
     localparam ALU_SUB  = 5'b00001;
     localparam ALU_AND  = 5'b00010;
     localparam ALU_OR   = 5'b00011;
     localparam ALU_XOR  = 5'b00100;
     localparam ALU_SLT  = 5'b00101;  // Set less than
-    // SLTU removed for area optimization
+    localparam ALU_SLTU = 5'b00110;  // Set less than unsigned
     localparam ALU_SLL  = 5'b00111;  // Shift left logical
-    // SRL and SRA removed for area optimization
-    localparam ALU_BEQ  = 5'b10000;  // Branch equal
-    localparam ALU_BNE  = 5'b10001;  // Branch not equal
-    localparam ALU_BLT  = 5'b10010;  // Branch less than
-    localparam ALU_BGE  = 5'b10011;  // Branch greater/equal
-    // Unsigned branch operations removed for area optimization
+    localparam ALU_SRL  = 5'b01000;  // Shift right logical
+    localparam ALU_SRA  = 5'b01001;  // Shift right arithmetic
+    localparam ALU_MUL  = 5'b01010;  // Multiplication
+    localparam ALU_MULH = 5'b01011;  // Multiplication high signed
+    localparam ALU_MULHU= 5'b01100;  // Multiplication high unsigned
+    localparam ALU_DIV  = 5'b01101;  // Division
+    localparam ALU_DIVU = 5'b01110;  // Division unsigned
+    localparam ALU_REM  = 5'b01111;  // Remainder
+    localparam ALU_REMU = 5'b10000;  // Remainder unsigned
+    localparam ALU_BEQ  = 5'b11000;  // Branch equal
+    localparam ALU_BNE  = 5'b11001;  // Branch not equal
+    localparam ALU_BLT  = 5'b11010;  // Branch less than
+    localparam ALU_BGE  = 5'b11011;  // Branch greater/equal
+    localparam ALU_BLTU = 5'b11100;  // Branch less than unsigned
+    localparam ALU_BGEU = 5'b11101;  // Branch greater/equal unsigned
 
     // Internal signals
     wire [8:0] add_result = {1'b0, a} + {1'b0, b};
     wire [8:0] sub_result = {1'b0, a} - {1'b0, b};
     wire signed [7:0] a_signed = a;
     wire signed [7:0] b_signed = b;
+    wire [2:0] shift_amount = b[2:0];  // Use lower 3 bits for shift amount
+
+    // Multiplication logic
+    wire [15:0] mul_full = a * b;                          // Full multiplication result
+    wire [7:0] mul_result = mul_full[7:0];                 // Multiplication low
+    wire [7:0] mulh_result = mul_full[15:8];               // Multiplication high (signed)
+    wire [15:0] mulhu_full = a * b;                        // Unsigned multiplication
+    wire [7:0] mulhu_result = mulhu_full[15:8];            // Multiplication high (unsigned)
+
+    // Division logic (simple implementation)
+    wire [7:0] div_result = (b != 8'h00) ? a / b : 8'hFF;  // Signed division
+    wire [7:0] divu_result = (b != 8'h00) ? a / b : 8'hFF; // Unsigned division
+    wire [7:0] rem_result = (b != 8'h00) ? a % b : a;      // Signed remainder
+    wire [7:0] remu_result = (b != 8'h00) ? a % b : a;     // Unsigned remainder
 
     // ALU operation logic - full functionality with division
     always @(*) begin
         case (alu_op)
+            // Arithmetic operations
             ALU_ADD:  result = add_result[7:0];
             ALU_SUB:  result = sub_result[7:0];
             ALU_AND:  result = a & b;
             ALU_OR:   result = a | b;
             ALU_XOR:  result = a ^ b;
+
+            // Comparison operations
             ALU_SLT:  result = (a_signed < b_signed) ? 8'h01 : 8'h00;
-            // SLTU removed for area optimization
-            ALU_SLL:  result = a << (b & 8'h07); // Only use lower 3 bits for shift amount
-            // SRL and SRA removed for area optimization
+            ALU_SLTU: result = (a < b) ? 8'h01 : 8'h00;
+
+            // Shift operations
+            ALU_SLL:  result = a << shift_amount;
+            ALU_SRL:  result = a >> shift_amount;
+            ALU_SRA:  result = $signed(a) >>> shift_amount;
+
+            // Multiplication operations
+            ALU_MUL:  result = mul_result;
+            ALU_MULH: result = mulh_result;
+            ALU_MULHU:result = mulhu_result;
+
+            // Division and remainder operations
+            ALU_DIV:  result = div_result;
+            ALU_DIVU: result = divu_result;
+            ALU_REM:  result = rem_result;
+            ALU_REMU: result = remu_result;
 
             // Branch operations (result indicates if branch should be taken)
             ALU_BEQ:  result = (a == b) ? 8'h01 : 8'h00;
             ALU_BNE:  result = (a != b) ? 8'h01 : 8'h00;
             ALU_BLT:  result = (a_signed < b_signed) ? 8'h01 : 8'h00;
             ALU_BGE:  result = (a_signed >= b_signed) ? 8'h01 : 8'h00;
-            // Unsigned branch operations removed for area optimization
+            ALU_BLTU: result = (a < b) ? 8'h01 : 8'h00;
+            ALU_BGEU: result = (a >= b) ? 8'h01 : 8'h00;
 
             default:  result = 8'h00;
         endcase

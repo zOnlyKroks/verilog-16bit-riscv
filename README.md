@@ -4,7 +4,7 @@ Compact RISC-V processor implementation with external EEPROM memory optimized fo
 
 **Author**: Finn Rades (zOnlyKroks)  
 **Target**: TinyTapeout 1x2 tile (334x108 μm)  
-**Utilization**: 73% with external EEPROM interface
+**Utilization**: ~50-60% with full RV32I+M implementation
 
 ## Technical Specifications
 
@@ -15,7 +15,7 @@ Compact RISC-V processor implementation with external EEPROM memory optimized fo
 - **Memory Interface**: I2C master controller (100kHz)
 - **Execution**: Multi-cycle (10 states including I2C memory access)
 
-### Instruction Set (RV32I Subset)
+### Instruction Set (RV32I + M Extension Subset)
 **Arithmetic/Logic**:
 - `ADD rd, rs1, rs2` - Addition
 - `SUB rd, rs1, rs2` - Subtraction  
@@ -23,15 +23,34 @@ Compact RISC-V processor implementation with external EEPROM memory optimized fo
 - `OR rd, rs1, rs2` - Bitwise OR
 - `XOR rd, rs1, rs2` - Bitwise XOR
 - `SLT rd, rs1, rs2` - Set less than (signed)
+- `SLTU rd, rs1, rs2` - Set less than (unsigned)
+
+**Shift Operations**:
 - `SLL rd, rs1, rs2` - Shift left logical
+- `SRL rd, rs1, rs2` - Shift right logical
+- `SRA rd, rs1, rs2` - Shift right arithmetic
+
+**Multiplication Operations (M Extension)**:
+- `MUL rd, rs1, rs2` - Multiply (low 8 bits)
+- `MULH rd, rs1, rs2` - Multiply high (signed × signed)
+- `MULHU rd, rs1, rs2` - Multiply high (unsigned × unsigned)
+
+**Division Operations (M Extension)**:
+- `DIV rd, rs1, rs2` - Division (signed)
+- `DIVU rd, rs1, rs2` - Division (unsigned)
+- `REM rd, rs1, rs2` - Remainder (signed)
+- `REMU rd, rs1, rs2` - Remainder (unsigned)
 
 **Immediate Operations**:
 - `ADDI rd, rs1, imm` - Add immediate
 - `ANDI rd, rs1, imm` - AND immediate
 - `ORI rd, rs1, imm` - OR immediate  
 - `XORI rd, rs1, imm` - XOR immediate
-- `SLTI rd, rs1, imm` - Set less than immediate
+- `SLTI rd, rs1, imm` - Set less than immediate (signed)
+- `SLTIU rd, rs1, imm` - Set less than immediate (unsigned)
 - `SLLI rd, rs1, shamt` - Shift left logical immediate
+- `SRLI rd, rs1, shamt` - Shift right logical immediate
+- `SRAI rd, rs1, shamt` - Shift right arithmetic immediate
 
 **Memory**:
 - `LB rd, offset(rs1)` - Load byte
@@ -40,8 +59,10 @@ Compact RISC-V processor implementation with external EEPROM memory optimized fo
 **Branches**:
 - `BEQ rs1, rs2, offset` - Branch if equal
 - `BNE rs1, rs2, offset` - Branch if not equal
-- `BLT rs1, rs2, offset` - Branch if less than
-- `BGE rs1, rs2, offset` - Branch if greater/equal
+- `BLT rs1, rs2, offset` - Branch if less than (signed)
+- `BGE rs1, rs2, offset` - Branch if greater/equal (signed)
+- `BLTU rs1, rs2, offset` - Branch if less than (unsigned)
+- `BGEU rs1, rs2, offset` - Branch if greater/equal (unsigned)
 
 **Jumps**:
 - `JAL rd, offset` - Jump and link
@@ -247,9 +268,18 @@ Instructions referencing x4-x31 will use x0 (reads) or be ignored (writes).
 - **External memory dependency**: Requires I2C EEPROM for operation
 - **Slower execution**: ~200μs per instruction due to I2C overhead
 - **No interrupts**: Polling-based I/O only  
-- **No multiplication/division**: Software implementation required
+- **8-bit datapath**: Operations limited to 8-bit values
 - **No floating point**: Integer operations only
 - **Limited I2C speed**: 100kHz maximum for reliable operation
+
+## Features
+
+✅ **Complete RV32I base instruction set**  
+✅ **M Extension**: Full multiplication, division, and remainder operations  
+✅ **All shift operations**: Logical and arithmetic shifts  
+✅ **All comparison operations**: Signed and unsigned variants  
+✅ **All branch operations**: Including unsigned comparisons  
+✅ **External 64KB memory**: Via I2C EEPROM interface
 
 ## File Structure
 
