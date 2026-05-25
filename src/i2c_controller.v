@@ -185,6 +185,11 @@ module i2c_controller #(
                     read_data <= shift_reg;
                 end
 
+                default: begin
+                    // Handle undefined states - go to IDLE
+                    state <= IDLE;
+                end
+
             endcase
         end
     end
@@ -242,6 +247,8 @@ module i2c_controller #(
             end
 
             STOP_BIT: next_state = IDLE;
+
+            default: next_state = IDLE;  // Handle undefined states
 
         endcase
     end

@@ -17,8 +17,7 @@ module tt_um_zonlykroks_8bit_riscv (
     input  wire       rst_n     // reset_n - low to reset
 );
 
-    // Input signal assignments
-    wire debug_en = ui_in[0];
+    // Input signal assignments (debug removed for area optimization)
 
     // Essential CPU signals only
     wire [15:0] pc;

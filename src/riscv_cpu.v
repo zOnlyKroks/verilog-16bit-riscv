@@ -71,14 +71,12 @@ module riscv_cpu (
     wire [5:0] imm_base = instruction[5:0];     // 6-bit immediate from rs2+funct3 fields
     wire [15:0] imm_i = {{10{imm_base[5]}}, imm_base}; // Sign-extend 6-bit immediate
     wire [15:0] imm_s = imm_i;                  // Same encoding for stores
-    wire [15:0] imm_b = {{9{imm_base[5]}}, imm_base, 1'b0}; // Branch offset
-    wire [15:0] imm_j = {{8{imm_base[5]}}, imm_base, 2'b00}; // Jump offset
+    // imm_b and imm_j removed for area optimization (not used)
 
     // Memory mapping for 64KB EEPROM
     // 0x0000-0x7FFF: Instruction memory (32KB)
     // 0x8000-0xFFFF: Data memory (32KB)
-    wire [15:0] instruction_addr = (pc << 2) + {14'b0, fetch_counter};
-    wire [15:0] data_addr = 16'h8000 + alu_out[15:0]; // Data in upper 32KB
+    // Address calculation inlined for area optimization
 
     // Memory data output from I2C (16-bit value assembled from bytes)
     reg [15:0] mem_data_out;
@@ -209,14 +207,14 @@ module riscv_cpu (
         .data_out2(reg_data2)  // rs2 data for ALU
     );
 
-    // ALU input mux
+    // ALU input mux (updated for 4-bit opcodes)
     reg [15:0] alu_b;
     always @(*) begin
         case (opcode)
-            7'b0010011: alu_b = imm_i;        // I-type uses immediate
-            7'b0000011: alu_b = imm_i;        // Load uses immediate
-            7'b0100011: alu_b = imm_s;        // Store uses immediate
-            default:    alu_b = reg_data2;    // R-type uses register
+            4'b1011: alu_b = imm_i;        // Load uses immediate
+            4'b1100: alu_b = imm_s;        // Store uses immediate
+            4'b1111: alu_b = imm_i;        // LUI uses immediate
+            default: alu_b = reg_data2;    // R-type uses register
         endcase
     end
 
