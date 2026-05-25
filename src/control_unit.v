@@ -1,5 +1,5 @@
 /*
- * Control Unit for 8-bit RISC-V CPU
+ * Control Unit for 16-bit RISC-V CPU with 16 registers
  * Generates control signals for all CPU components
  * Copyright (c) 2024 Finn Rades (zOnlyKroks)
  * SPDX-License-Identifier: Apache-2.0
@@ -9,26 +9,31 @@
 
 module control_unit (
     input  wire [3:0] opcode,      // 4-bit opcode for 16-bit instructions
-    input  wire [2:0] funct3,      // Function field 3
     output reg  [4:0] alu_op,      // ALU operation code (expanded to 5 bits)
     output reg        reg_write_en, // Register write enable
     output reg        mem_read_en,  // Memory read enable
     output reg        mem_write_en, // Memory write enable
     output reg  [1:0] pc_sel,      // PC source select
     output reg  [1:0] reg_data_sel // Register write data select
-    // output reg        jump_taken   // Removed unused signal
 );
 
-    // Compact 4-bit opcodes for 16-bit instructions
-    localparam OP_IMM     = 4'b0000;  // Immediate arithmetic
-    localparam OP_REG     = 4'b0001;  // Register-register arithmetic
-    localparam OP_LOAD    = 4'b0010;  // Load instructions
-    localparam OP_STORE   = 4'b0011;  // Store instructions
-    localparam OP_BRANCH  = 4'b0100;  // Branch instructions
-    localparam OP_JAL     = 4'b0101;  // Jump and Link
-    localparam OP_JALR    = 4'b0110;  // Jump and Link Register
-    localparam OP_LUI     = 4'b0111;  // Load Upper Immediate
-    localparam OP_LOGIC   = 4'b1000;  // Logic operations (AND, OR, XOR)
+    // Simplified 4-bit opcodes for 16 registers (no funct3)
+    localparam OP_ADD     = 4'b0000;  // ADD operation
+    localparam OP_SUB     = 4'b0001;  // SUB operation
+    localparam OP_MUL     = 4'b0010;  // MUL operation
+    localparam OP_AND     = 4'b0011;  // AND operation
+    localparam OP_OR      = 4'b0100;  // OR operation
+    localparam OP_XOR     = 4'b0101;  // XOR operation
+    localparam OP_SLL     = 4'b0110;  // Shift left logical
+    localparam OP_SRL     = 4'b0111;  // Shift right logical
+    localparam OP_SRA     = 4'b1000;  // Shift right arithmetic
+    localparam OP_SLT     = 4'b1001;  // Set less than
+    localparam OP_SLTU    = 4'b1010;  // Set less than unsigned
+    localparam OP_LOAD    = 4'b1011;  // Load from memory
+    localparam OP_STORE   = 4'b1100;  // Store to memory
+    localparam OP_BRANCH  = 4'b1101;  // Branch (simplified)
+    localparam OP_JAL     = 4'b1110;  // Jump and Link
+    localparam OP_LUI     = 4'b1111;  // Load Upper Immediate
 
     // ALU operation mapping
     always @(*) begin
@@ -39,95 +44,100 @@ module control_unit (
         mem_write_en = 1'b0;
         pc_sel = 2'b00;        // Normal PC increment
         reg_data_sel = 2'b00;  // ALU result
-        // jump_taken = 1'b0;     // Removed unused signal
 
         case (opcode)
-            OP_IMM: begin
+            OP_ADD: begin
                 reg_write_en = 1'b1;
                 reg_data_sel = 2'b00; // ALU result
-                case (funct3)
-                    3'b000: alu_op = 5'b00000; // ADDI
-                    3'b001: alu_op = 5'b00111; // SLLI
-                    3'b010: alu_op = 5'b00101; // SLTI
-                    3'b011: alu_op = 5'b00110; // SLTIU
-                    3'b100: alu_op = 5'b00100; // XORI
-                    3'b101: alu_op = 5'b01000; // SRLI
-                    3'b110: alu_op = 5'b00011; // ORI
-                    3'b111: alu_op = 5'b00010; // ANDI
-                    default: alu_op = 5'b00000;
-                endcase
+                alu_op = 5'b00000;    // ADD
             end
 
-            OP_REG: begin
+            OP_SUB: begin
                 reg_write_en = 1'b1;
                 reg_data_sel = 2'b00; // ALU result
-                case (funct3)
-                    3'b000: alu_op = 5'b00000;      // ADD
-                    3'b001: alu_op = 5'b00001;      // SUB
-                    3'b010: alu_op = 5'b01010;      // MUL
-                    3'b011: alu_op = 5'b00111;      // SLL
-                    3'b100: alu_op = 5'b01001;      // SRA
-                    3'b101: alu_op = 5'b00101;      // SLT
-                    3'b110: alu_op = 5'b01000;      // SRL
-                    3'b111: alu_op = 5'b00110;      // SLTU
-                    default: alu_op = 5'b00000;
-                endcase
+                alu_op = 5'b00001;    // SUB
+            end
+
+            OP_MUL: begin
+                reg_write_en = 1'b1;
+                reg_data_sel = 2'b00; // ALU result
+                alu_op = 5'b01010;    // MUL
+            end
+
+            OP_AND: begin
+                reg_write_en = 1'b1;
+                reg_data_sel = 2'b00; // ALU result
+                alu_op = 5'b00010;    // AND
+            end
+
+            OP_OR: begin
+                reg_write_en = 1'b1;
+                reg_data_sel = 2'b00; // ALU result
+                alu_op = 5'b00011;    // OR
+            end
+
+            OP_XOR: begin
+                reg_write_en = 1'b1;
+                reg_data_sel = 2'b00; // ALU result
+                alu_op = 5'b00100;    // XOR
+            end
+
+            OP_SLL: begin
+                reg_write_en = 1'b1;
+                reg_data_sel = 2'b00; // ALU result
+                alu_op = 5'b00111;    // SLL
+            end
+
+            OP_SRL: begin
+                reg_write_en = 1'b1;
+                reg_data_sel = 2'b00; // ALU result
+                alu_op = 5'b01000;    // SRL
+            end
+
+            OP_SRA: begin
+                reg_write_en = 1'b1;
+                reg_data_sel = 2'b00; // ALU result
+                alu_op = 5'b01001;    // SRA
+            end
+
+            OP_SLT: begin
+                reg_write_en = 1'b1;
+                reg_data_sel = 2'b00; // ALU result
+                alu_op = 5'b00101;    // SLT
+            end
+
+            OP_SLTU: begin
+                reg_write_en = 1'b1;
+                reg_data_sel = 2'b00; // ALU result
+                alu_op = 5'b00110;    // SLTU
             end
 
             OP_LOAD: begin
                 reg_write_en = 1'b1;
                 mem_read_en = 1'b1;
                 reg_data_sel = 2'b01; // Memory data
-                alu_op = 5'b00000;     // ADD for address calculation
+                alu_op = 5'b00000;    // ADD for address calculation
             end
 
             OP_STORE: begin
                 mem_write_en = 1'b1;
-                alu_op = 5'b00000;     // ADD for address calculation
+                alu_op = 5'b00000;    // ADD for address calculation
             end
 
             OP_BRANCH: begin
-                pc_sel = 2'b01; // Will use branch_taken signal from ALU
-                case (funct3)
-                    3'b000: alu_op = 5'b10000; // BEQ
-                    3'b001: alu_op = 5'b10001; // BNE
-                    3'b100: alu_op = 5'b10010; // BLT
-                    3'b101: alu_op = 5'b10011; // BGE
-                    3'b110: alu_op = 5'b10100; // BLTU
-                    3'b111: alu_op = 5'b10101; // BGEU
-                    default: alu_op = 5'b10000;
-                endcase
+                pc_sel = 2'b01;       // Branch
+                alu_op = 5'b10000;    // BEQ (simplified)
             end
 
             OP_JAL: begin
                 reg_write_en = 1'b1;
-                reg_data_sel = 2'b10; // PC + 4 (return address)
+                reg_data_sel = 2'b10; // PC + 1 (return address)
                 pc_sel = 2'b10;       // Jump
-                // jump_taken = 1'b1;    // Removed unused signal
-            end
-
-            OP_JALR: begin
-                reg_write_en = 1'b1;
-                reg_data_sel = 2'b10; // PC + 4 (return address)
-                pc_sel = 2'b11;       // Jump register
-                // jump_taken = 1'b1;    // Removed unused signal
-                alu_op = 5'b00000;     // ADD for target address calculation
             end
 
             OP_LUI: begin
                 reg_write_en = 1'b1;
                 reg_data_sel = 2'b11; // Immediate value
-            end
-
-            OP_LOGIC: begin
-                reg_write_en = 1'b1;
-                reg_data_sel = 2'b00; // ALU result
-                case (funct3)
-                    3'b000: alu_op = 5'b00010;      // AND
-                    3'b001: alu_op = 5'b00011;      // OR
-                    3'b010: alu_op = 5'b00100;      // XOR
-                    default: alu_op = 5'b00010;
-                endcase
             end
 
             default: begin
@@ -137,7 +147,5 @@ module control_unit (
             end
         endcase
     end
-
-    // Branch taken signal comes from ALU directly in CPU module
 
 endmodule

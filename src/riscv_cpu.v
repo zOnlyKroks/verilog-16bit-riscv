@@ -58,12 +58,11 @@ module riscv_cpu (
     wire branch_taken_alu;
     // wire jump_taken; // Removed unused signal
 
-    // Compact 16-bit instruction decode
+    // Enhanced 16-bit instruction decode for 16 registers
     wire [3:0] opcode = instruction[15:12];  // 4-bit opcode (16 operations)
-    wire [2:0] rd     = instruction[11:9];   // 3 bits for 6 registers
-    wire [2:0] rs1    = instruction[8:6];    // 3 bits for 6 registers
-    wire [2:0] rs2    = instruction[5:3];    // 3 bits for 6 registers
-    wire [2:0] funct3 = instruction[2:0];    // 3-bit function code
+    wire [3:0] rd     = instruction[11:8];   // 4 bits for 16 registers
+    wire [3:0] rs1    = instruction[7:4];    // 4 bits for 16 registers
+    wire [3:0] rs2    = instruction[3:0];    // 4 bits for 16 registers
 
     // Compact immediate generation for 16-bit instructions
     wire [5:0] imm_base = instruction[5:0];     // 6-bit immediate from rs2+funct3 fields
@@ -234,7 +233,6 @@ module riscv_cpu (
 
     control_unit ctrl (
         .opcode(opcode),
-        .funct3(funct3),
         .alu_op(alu_op),
         .reg_write_en(reg_write_en),
         .mem_read_en(mem_read_en),
