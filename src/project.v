@@ -5,8 +5,8 @@
 
 `default_nettype none
 
-// TinyTapeout wrapper for 8-bit RISC-V processor
-module tt_um_zonlykroks_8bit_riscv (
+// TinyTapeout wrapper for 16-bit RISC-V processor
+module tt_um_zonlykroks_16bit_riscv (
     input  wire [7:0] ui_in,    // Dedicated inputs
     output wire [7:0] uo_out,   // Dedicated outputs
     input  wire [7:0] uio_in,   // IOs: Input path
